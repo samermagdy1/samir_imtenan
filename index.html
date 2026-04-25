@@ -2694,6 +2694,8 @@
           والتنبؤ</span></div>
       <div class="ni" onclick="goto('matrix',this)"><span class="ni-ico">🗺️</span><span class="ni-lbl">مصفوفة
           الجذور</span></div>
+      <div class="nav-section">🏭 صالات الإنتاج</div>
+      <div class="ni" onclick="goto('production',this)"><span class="ni-ico">🏭</span><span class="ni-lbl">لوحة الإنتاج</span><span class="ni-badge" id="nb-prod">0</span></div>
       <div class="nav-section">البيانات</div>
       <div class="ni" onclick="goto('groups',this)"><span class="ni-ico">🗂️</span><span class="ni-lbl">مجموعات
           المنتجات</span></div>
@@ -2966,6 +2968,10 @@
               <th onclick="sortProdTable('risk')">مستوى الخطر ↕</th>
               <th onclick="sortProdTable('topReason')">أبرز سبب</th>
               <th onclick="sortProdTable('avgAge')">عمر المنتج عند الإرجاع ↕</th>
+              <th>الاتجاه</th>
+              <th style="color:var(--cyan)" title="من بيانات IPC">🏭 إنتاج IPC</th>
+              <th style="color:var(--gold)" title="نسبة المرتجع من الإنتاج الفعلي">📊 نسبة مرتجع IPC</th>
+              <th>تفاصيل</th>
               <th>اتجاه</th>
               <th>تفاصيل</th>
             </tr>
@@ -3181,10 +3187,8 @@
           <div class="card-header">
             <div class="card-title">📋 جدول التحليل التفصيلي — جميع الأسباب</div>
             <div style="display:flex;gap:6px">
-              <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="exportGroupsCSV()">📋
-                CSV</button>
-              <button class="btn btn-blue" style="font-size:11px;padding:5px 12px" onclick="printGroupsReport()">🖨️
-                طباعة</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="exportGroupsCSV()">📋 CSV</button>
+              <button class="btn btn-blue" style="font-size:11px;padding:5px 12px" onclick="printGroupsReport()">🖨️ طباعة</button>
             </div>
           </div>
           <div class="tw">
@@ -3193,7 +3197,7 @@
                 <tr>
                   <th>المجموعة</th>
                   <th>إجمالي المرتجع</th>
-                  <th>الإنتاج الكلي</th>
+                  <th>الإنتاج (شهر الإنتاج)</th>
                   <th>نسبة المرتجع</th>
                   <th>جميع الأسباب (عدد | نسبة)</th>
                   <th>عدد المنتجات</th>
@@ -3203,6 +3207,18 @@
               <tbody id="grp-detail-tbody"></tbody>
             </table>
           </div>
+        </div>
+
+        <!-- Production month breakdown card -->
+        <div class="card" style="margin-top:13px">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🏭 تحليل المرتجعات حسب شهر الإنتاج</div>
+              <div class="card-sub">مقارنة مرتجعات كل شهر إنتاج مع كمية الإنتاج المُدخَلة لنفس الشهر</div>
+            </div>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="showMissingProdModal(getMissingProdMonths())">⚠️ إدخال إنتاج مفقود</button>
+          </div>
+          <div id="prod-month-analysis-table"></div>
         </div>
       </div>
 
@@ -3553,6 +3569,136 @@
       </div>
     </div>
 
+    <!-- ═══════ PRODUCTION PAGE ═══════ -->
+    <div class="pg" id="pg-production">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <h2 style="font-size:16px;font-weight:900;color:var(--gold);margin:0">🏭 لوحة الإنتاج — صالات المصنع</h2>
+        <!-- Search/Filter bar for IPC data -->
+        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="ipc-search" placeholder="🔍 ابحث في بيانات الإنتاج..." style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px;width:200px" oninput="filterIPCData()" />
+          <select id="ipc-filter-month" style="padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px" onchange="filterIPCData()">
+            <option value="">كل الأشهر</option>
+          </select>
+          <select id="ipc-filter-group" style="padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px" onchange="filterIPCData()">
+            <option value="">كل المجموعات</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Hall Tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-gold" id="htab-hall1" onclick="switchHallTab('hall1')">🏭 صالة المصرية</button>
+        <button class="btn btn-ghost" id="htab-hall2" onclick="switchHallTab('hall2')">🏭 صالة المتخصص</button>
+        <button class="btn btn-ghost" id="htab-combined" onclick="switchHallTab('combined')">📊 التحليل المدمج</button>
+      </div>
+
+      <!-- Hall 1 Panel -->
+      <div id="hall-panel-hall1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="card" style="padding:14px">
+            <div class="card-title">📂 استيراد ملف IPC — المصرية</div>
+            <div class="card-sub">ارفع ملف IPC Honey Report بصيغة .xlsx</div>
+            <div style="margin-top:10px">
+              <input type="file" id="ipc1Input" accept=".xlsx,.xls" onchange="handleIPCImport(this,'hall1')" style="display:none">
+              <button class="btn btn-gold" onclick="_('ipc1Input').click()">📂 رفع ملف IPC المصرية</button>
+              <span id="ipc1-status" style="font-size:11px;color:var(--txt2);margin-right:10px"></span>
+            </div>
+            <div id="ipc1-log" style="display:none;margin-top:8px;font-size:10.5px;line-height:1.8;max-height:80px;overflow-y:auto;color:var(--txt2)"></div>
+            <!-- Batch history for hall1 -->
+            <div id="hall1-batches" style="margin-top:10px"></div>
+          </div>
+          <div class="card" style="padding:14px" id="hall1-summary-card">
+            <div class="card-title">📊 ملخص صالة المصرية</div>
+            <div id="hall1-summary-kpis" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px">
+              <div style="text-align:center;color:var(--txt3)">لا توجد بيانات بعد</div>
+            </div>
+          </div>
+        </div>
+        <!-- Group Tabs for Hall 1 -->
+        <div id="hall1-group-tabs" style="display:none">
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="hall1-group-tab-btns"></div>
+          <div id="hall1-group-content"></div>
+          <!-- NCR Section -->
+          <div class="card" style="margin-top:14px;padding:14px" id="hall1-ncr-section" style="display:none">
+            <div class="card-title">⚠️ سجل NCR — المصرية</div>
+            <div id="hall1-ncr-content" style="margin-top:8px;overflow-x:auto"></div>
+          </div>
+          <!-- Supplier Defects -->
+          <div class="card" style="margin-top:14px;padding:14px" id="hall1-supdef-section" style="display:none">
+            <div class="card-title">📋 عيوب المستلزمات — المصرية</div>
+            <div id="hall1-supdef-content" style="margin-top:8px;overflow-x:auto"></div>
+          </div>
+        </div>
+        <div id="hall1-empty" style="text-align:center;padding:40px;color:var(--txt3)">
+          <div style="font-size:40px;margin-bottom:10px">🏭</div>
+          <div>لم يتم استيراد بيانات صالة المصرية بعد</div>
+        </div>
+      </div>
+
+      <!-- Hall 2 Panel -->
+      <div id="hall-panel-hall2" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="card" style="padding:14px">
+            <div class="card-title">📂 استيراد ملف IPC — المتخصص</div>
+            <div class="card-sub">ارفع ملف IPC Special Honey Report بصيغة .xlsx</div>
+            <div style="margin-top:10px">
+              <input type="file" id="ipc2Input" accept=".xlsx,.xls" onchange="handleIPCImport(this,'hall2')" style="display:none">
+              <button class="btn btn-gold" onclick="_('ipc2Input').click()">📂 رفع ملف IPC المتخصص</button>
+              <span id="ipc2-status" style="font-size:11px;color:var(--txt2);margin-right:10px"></span>
+            </div>
+            <div id="ipc2-log" style="display:none;margin-top:8px;font-size:10.5px;line-height:1.8;max-height:80px;overflow-y:auto;color:var(--txt2)"></div>
+            <!-- Batch history for hall2 -->
+            <div id="hall2-batches" style="margin-top:10px"></div>
+          </div>
+          <div class="card" style="padding:14px">
+            <div class="card-title">📊 ملخص صالة المتخصص</div>
+            <div id="hall2-summary-kpis" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px">
+              <div style="text-align:center;color:var(--txt3)">لا توجد بيانات بعد</div>
+            </div>
+          </div>
+        </div>
+        <div id="hall2-group-tabs" style="display:none">
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="hall2-group-tab-btns"></div>
+          <div id="hall2-group-content"></div>
+          <div class="card" style="margin-top:14px;padding:14px" id="hall2-ncr-section">
+            <div class="card-title">⚠️ سجل NCR — المتخصص</div>
+            <div id="hall2-ncr-content" style="margin-top:8px;overflow-x:auto"></div>
+          </div>
+          <div class="card" style="margin-top:14px;padding:14px" id="hall2-supdef-section">
+            <div class="card-title">📋 عيوب المستلزمات — المتخصص</div>
+            <div id="hall2-supdef-content" style="margin-top:8px;overflow-x:auto"></div>
+          </div>
+        </div>
+        <div id="hall2-empty" style="text-align:center;padding:40px;color:var(--txt3)">
+          <div style="font-size:40px;margin-bottom:10px">🏭</div>
+          <div>لم يتم استيراد بيانات صالة المتخصص بعد</div>
+        </div>
+      </div>
+
+      <!-- Combined Analysis Panel -->
+      <div id="hall-panel-combined" style="display:none">
+        <div class="card" style="padding:14px;margin-bottom:14px">
+          <div class="card-title">📊 التحليل المدمج — الصالتان معاً</div>
+          <div id="combined-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px"></div>
+        </div>
+        <!-- Filters for combined view -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <select id="comb-filter-month" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px" onchange="renderCombinedAnalysis()">
+            <option value="">كل الأشهر</option>
+          </select>
+          <select id="comb-filter-group" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px" onchange="renderCombinedAnalysis()">
+            <option value="">كل المجموعات</option>
+          </select>
+          <select id="comb-filter-hall" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px" onchange="renderCombinedAnalysis()">
+            <option value="">الصالتان</option>
+            <option value="hall1">🏭 المصرية فقط</option>
+            <option value="hall2">🏭 المتخصص فقط</option>
+          </select>
+          <input type="text" id="comb-search" placeholder="🔍 بحث..." style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:11px;width:160px" oninput="renderCombinedAnalysis()" />
+        </div>
+        <div id="combined-table-wrap" style="overflow-x:auto"></div>
+      </div>
+    </div>
   </main><!-- /main -->
 
   <!-- DRILL-DOWN PANEL -->
@@ -3610,7 +3756,7 @@
     /* ═══════════════════════════════════════════════════════
        STATE
     ═══════════════════════════════════════════════════════ */
-    let S = { records: [], lastSaved: null, groupConfig: null, monthlyProduction: {}, groupTargets: {} };
+    let S = { records: [], lastSaved: null, groupConfig: null, monthlyProduction: {}, groupTargets: {}, production: { halls: {} } };
     let charts = {};
     let dirty = false;
     let editId = null;
@@ -3982,9 +4128,11 @@
     /* ── Generic period filter for a records array ── */
     function applyPeriodFilter(records, pf) {
       if (pf.mode === 'all' || pf.mode === 'cumulative') return records;
-      if (pf.mode === 'monthly' && pf.month) return records.filter(r => r.date?.startsWith(pf.month));
-      if (pf.mode === 'yearly' && pf.year) return records.filter(r => r.date?.startsWith(pf.year));
-      if (pf.mode === 'multi' && pf.multi.length) return records.filter(r => pf.multi.some(m => r.date?.startsWith(m)));
+      // Use prodDate (production month) as primary key — return is attributed to production month
+      const getPM = r => r.prodDate?.slice(0,7) || r.date?.slice(0,7) || '';
+      if (pf.mode === 'monthly' && pf.month) return records.filter(r => getPM(r) === pf.month);
+      if (pf.mode === 'yearly' && pf.year) return records.filter(r => getPM(r).startsWith(pf.year));
+      if (pf.mode === 'multi' && pf.multi.length) return records.filter(r => pf.multi.includes(getPM(r)));
       if (pf.mode === 'custom' && pf.from && pf.to) return records.filter(r => r.date && r.date >= pf.from && r.date <= pf.to);
       return records;
     }
@@ -4306,7 +4454,26 @@
     /* Sum all groups' production for a given period filter */
     function getTotalProdForPeriod(pf) {
       const cfg = S.groupConfig || buildDefaultGroupConfig();
-      return cfg.reduce((sum, g) => sum + getPeriodProd(g.id, pf), 0);
+      const manualTotal = cfg.reduce((sum, g) => sum + getPeriodProd(g.id, pf), 0);
+      // If no manual production data, try IPC production data
+      if (manualTotal > 0) return manualTotal;
+      // Fall back to IPC data summed by period
+      if (!S.production || !S.production.halls) return 0;
+      let ipcTotal = 0;
+      Object.values(S.production.halls).forEach(hall => {
+        if (!hall || !hall.records) return;
+        hall.records.forEach(r => {
+          const recMonth = (r.prodDate || r.opDate || '').slice(0, 7);
+          if (!recMonth) return;
+          let ok = true;
+          if (pf.mode === 'monthly' && pf.month) ok = recMonth === pf.month;
+          else if (pf.mode === 'yearly' && pf.year) ok = recMonth.startsWith(pf.year);
+          else if (pf.mode === 'multi' && pf.multi && pf.multi.length) ok = pf.multi.includes(recMonth);
+          else if (pf.mode === 'custom' && pf.from && pf.to) { const fm = pf.from.slice(0,7), tm = pf.to.slice(0,7); ok = recMonth >= fm && recMonth <= tm; }
+          if (ok) ipcTotal += (r.actualProd || 0);
+        });
+      });
+      return ipcTotal;
     }
 
     /* Get production per month for a given period filter (for mini bar chart) */
@@ -4316,7 +4483,6 @@
       cfg.forEach(g => {
         const mp = S.monthlyProduction[g.id] || {};
         Object.entries(mp).forEach(([m, v]) => {
-          // Filter by period
           let ok = true;
           if (pf.mode === 'monthly' && pf.month) ok = m === pf.month;
           else if (pf.mode === 'yearly' && pf.year) ok = m.startsWith(pf.year);
@@ -4325,6 +4491,22 @@
           if (ok) monthMap[m] = (monthMap[m] || 0) + v;
         });
       });
+      // Supplement with IPC data if manual data is empty
+      if (Object.keys(monthMap).length === 0 && S.production && S.production.halls) {
+        Object.values(S.production.halls).forEach(hall => {
+          if (!hall || !hall.records) return;
+          hall.records.forEach(r => {
+            const m = (r.prodDate || r.opDate || '').slice(0, 7);
+            if (!m) return;
+            let ok = true;
+            if (pf.mode === 'monthly' && pf.month) ok = m === pf.month;
+            else if (pf.mode === 'yearly' && pf.year) ok = m.startsWith(pf.year);
+            else if (pf.mode === 'multi' && pf.multi && pf.multi.length) ok = pf.multi.includes(m);
+            else if (pf.mode === 'custom' && pf.from && pf.to) { const fm = pf.from.slice(0,7), tm = pf.to.slice(0,7); ok = m >= fm && m <= tm; }
+            if (ok) monthMap[m] = (monthMap[m] || 0) + (r.actualProd || 0);
+          });
+        });
+      }
       return Object.entries(monthMap).sort((a,b) => a[0] < b[0] ? -1 : 1);
     }
 
@@ -4696,6 +4878,12 @@
         const trendArrow = p.trend > 0.5 ? '<span style="color:var(--red)">▲ تصاعد</span>' :
           p.trend < -0.5 ? '<span style="color:var(--em)">▼ تراجع</span>' :
             '<span style="color:var(--txt3)">→ مستقر</span>';
+
+        // IPC Production integration
+        const ipcProd = getIPCProductionForBarcode(p.barcode || p.name);
+        const ipcRetRate = ipcProd > 0 ? (p.totalReturned / ipcProd * 100).toFixed(2) : null;
+        const ipcRateColor = ipcRetRate ? (parseFloat(ipcRetRate)>5?'var(--red)':parseFloat(ipcRetRate)>2?'var(--amber)':'var(--em)') : 'var(--txt3)';
+
         return `<tr>
       <td style="font-weight:700;color:var(--txt3)">${p.rank}</td>
       <td style="font-weight:700;max-width:160px;overflow:hidden;text-overflow:ellipsis">${p.name}</td>
@@ -4717,6 +4905,8 @@
       <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--txt2)">${p.topReason}</td>
       <td style="color:var(--txt2)">${p.avgAge != null ? p.avgAge + ' يوم' : '—'}</td>
       <td>${trendArrow}</td>
+      <td style="text-align:center;font-weight:700;color:${ipcProd>0?'var(--cyan)':'var(--txt4)'}">${ipcProd>0?ipcProd.toLocaleString('ar-EG'):'—'}</td>
+      <td style="text-align:center;font-weight:800;color:${ipcRateColor}">${ipcRetRate!==null?ipcRetRate+'%':'—'}</td>
       <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:10px" onclick="drillDownProduct('${p.name.replace(/'/g, "\\'")}')">🔍 تفاصيل</button></td>
     </tr>`;
       }).join('');
@@ -5294,11 +5484,9 @@
 
           if (totalAdded > 0) {
             toast(`✅ تم استيراد ${totalAdded} سجل — إجمالي الكمية: ${S.records.slice(-totalAdded).reduce((a,r)=>a+r.qty,0)} وحدة`);
-            const missingProdMonths = [...newMonthsSet].filter(m => {
-              const cfg2 = S.groupConfig || buildDefaultGroupConfig();
-              return cfg2.some(g => !(S.monthlyProduction[g.id] || {})[m]);
-            });
-            if (missingProdMonths.length > 0) setTimeout(() => showProdNotifyModal(missingProdMonths), 1200);
+            // Detect months missing production data — keyed by PRODUCTION month (prodDate)
+            const missing = getMissingProdMonths();
+            if (missing.length > 0) setTimeout(() => showMissingProdModal(missing), 1200);
           } else toast('لم يُستورد أي سجل', 'err');
         } catch (err) { setPb(0, 'خطأ'); toast('خطأ: ' + err.message, 'err'); }
         if (input) input.value = '';
@@ -5495,7 +5683,7 @@
           if (el) el.innerHTML = `<b>آخر حفظ:</b> ${new Date().toLocaleTimeString('ar-EG')}`;
         } catch (e) {
           try {
-            const slim = { records: S.records.slice(-800), lastSaved: S.lastSaved, groupConfig: S.groupConfig, monthlyProduction: S.monthlyProduction, groupTargets: S.groupTargets, __trimmed: true };
+            const slim = { records: S.records.slice(-800), lastSaved: S.lastSaved, groupConfig: S.groupConfig, monthlyProduction: S.monthlyProduction, groupTargets: S.groupTargets, production: S.production, __trimmed: true };
             localStorage.setItem(LS_KEY, JSON.stringify(slim));
             toast('تم الحفظ — اقتُصِّت السجلات القديمة', 'warn'); markClean();
           } catch (e2) { toast('تعذر الحفظ', 'err'); }
@@ -5503,24 +5691,6 @@
       };
       if (immediate) { clearTimeout(_saveTimer); doSave(); }
       else { clearTimeout(_saveTimer); _saveTimer = setTimeout(doSave, 600); }
-    }
-    function load() {
-      try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (raw) {
-          const p = JSON.parse(raw);
-          S = {
-            records: DataProcessor.normalize(Array.isArray(p.records) ? p.records : []),
-            lastSaved: p.lastSaved || null,
-            groupConfig: p.groupConfig || null,
-            monthlyProduction: p.monthlyProduction || {}
-          };
-          if (!S.groupConfig) S.groupConfig = buildDefaultGroupConfig();
-          if (S.lastSaved) _('nav-save-txt').innerHTML = `<b>آخر حفظ:</b> ${new Date(S.lastSaved).toLocaleTimeString('ar-EG')}`;
-          return true;
-        }
-      } catch (e) { toast('تعذر قراءة البيانات', 'err'); }
-      S = { records: [], lastSaved: null, groupConfig: buildDefaultGroupConfig(), monthlyProduction: {} }; return false;
     }
     function markDirty() { dirty = true; const d = _('saveDot'); if (d) d.classList.add('dirty') }
     function markClean() { dirty = false; const d = _('saveDot'); if (d) d.classList.remove('dirty') }
@@ -5538,13 +5708,1040 @@
 
     function updateBadges() {
       _('nb-records').textContent = S.records.length;
+      // Count total production records across halls
+      let prodCount = 0;
+      if (S.production && S.production.halls) {
+        Object.values(S.production.halls).forEach(h => { prodCount += (h.records || []).length; });
+      }
+      const nb = _('nb-prod'); if (nb) nb.textContent = prodCount;
       markDirty();
     }
     function askClear() {
       if (!confirm('⚠️ مسح جميع البيانات نهائياً؟ لا يمكن التراجع!')) return;
-      S = { records: [], lastSaved: null, groupConfig: S.groupConfig || buildDefaultGroupConfig(), monthlyProduction: {} };
+      S = { records: [], lastSaved: null, groupConfig: S.groupConfig || buildDefaultGroupConfig(), monthlyProduction: {}, production: { halls: {} } };
       try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { }
       markClean(); updateBadges(); populateFilterSelects(); rfOverview(); toast('تم المسح', 'info');
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       PRODUCTION MODULE — IPC HALL SYSTEM
+       ══════════════════════════════════════════════════════════════════════ */
+
+    // Group display config: priority order, Arabic labels, colors
+    const PROD_GROUPS = [
+      { key: 'Honey Automation', label: '🤖 أتمتة العسل', color: 'var(--cyan)', badge: 'Automation' },
+      { key: 'Honey Manual',     label: '👐 يدوي العسل',  color: 'var(--gold)', badge: 'Manual' },
+      { key: 'Manual',           label: '🔧 يدوي عام',    color: 'var(--violet)', badge: 'Manual' },
+      { key: 'Oil Semi Automation', label: '🫙 زيوت شبه أتمتة', color: 'var(--blue)', badge: 'Semi' },
+      { key: 'External',         label: '📦 خارجي',       color: 'var(--amber)', badge: 'Ext' },
+      { key: 'external',         label: '📦 خارجي',       color: 'var(--amber)', badge: 'Ext' },
+      { key: 'TEA Automation',   label: '🍵 أتمتة شاي',   color: 'var(--em)', badge: 'Tea' },
+      { key: 'NA',               label: '⭕ غير محدد',    color: 'var(--txt3)', badge: 'NA' },
+    ];
+
+    const SIGMA_COLORS = { 6:'var(--em)', 5:'var(--cyan)', 4:'var(--blue)', 3:'var(--gold)', 2:'var(--amber)', 1:'var(--orange)', 0:'var(--red)' };
+    const GRADE_AR = { first:'ممتاز جداً', second:'ممتاز', third:'جيد جداً', fourth:'جيد', '5th':'مقبول', reject:'مرفوض' };
+    const GRADE_COLOR = { first:'var(--em)', second:'var(--cyan)', third:'var(--blue)', fourth:'var(--gold)', '5th':'var(--amber)', reject:'var(--red)' };
+    let _activeHall = 'hall1';
+    let _activeGroup = { hall1: null, hall2: null };
+
+    // Parse IPC Excel file (both hall formats share same schema)
+    function handleIPCImport(input, hallKey) {
+      const file = input?.files?.[0]; if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['xlsx','xls'].includes(ext)) { toast('يُقبل فقط xlsx أو xls', 'err'); input.value=''; return; }
+
+      const statusEl = _(`ipc${hallKey==='hall1'?'1':'2'}-status`);
+      const logEl = _(`ipc${hallKey==='hall1'?'1':'2'}-log`);
+      if (statusEl) statusEl.textContent = '⏳ جاري القراءة...';
+      if (logEl) { logEl.style.display='block'; logEl.innerHTML=''; }
+
+      const rdr = new FileReader();
+      rdr.onerror = () => { if(statusEl) statusEl.textContent='❌ فشل'; toast('فشل قراءة الملف','err'); };
+      rdr.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type:'array', cellDates:true, dateNF:'YYYY-MM-DD' });
+          const log = [];
+
+          // 1. Read Barcode sheet
+          const barcodeMap = {};
+          const bsn = wb.SheetNames.find(s => s.toLowerCase() === 'barcode');
+          if (bsn) {
+            const brows = XLSX.utils.sheet_to_json(wb.Sheets[bsn], { header:1, defval:'', raw:true });
+            brows.slice(1).forEach(r => {
+              const bc = String(r[0]||'').trim();
+              const nm = String(r[1]||'').trim();
+              const gr = String(r[2]||'').trim();
+              if (bc && nm && bc !== 'Barcode') barcodeMap[bc] = { name: nm, group: gr };
+            });
+            log.push(`✅ Barcode: ${Object.keys(barcodeMap).length} منتج`);
+          }
+
+          // 2. Read REPORT sheet
+          const records = [];
+          const rsn = wb.SheetNames.find(s => s.toUpperCase() === 'REPORT');
+          if (rsn) {
+            const rrows = XLSX.utils.sheet_to_json(wb.Sheets[rsn], { header:1, defval:'', raw:true });
+            // Find header row (has 'Operation date' or 'Barcode')
+            let hRow = 6; // default row index (0-based)
+            for (let i=0; i<Math.min(10,rrows.length); i++) {
+              const r = rrows[i].map(c => String(c||'').toLowerCase());
+              if (r.some(c => c.includes('operation') || c === 'barcode' || c.includes('actual'))) { hRow=i; break; }
+            }
+            let added=0, rej=0;
+            rrows.slice(hRow+1).forEach(row => {
+              const opDate = row[0];
+              if (!opDate) return;
+              const ds = parseDate(opDate);
+              if (!ds) { rej++; return; }
+              const bc = String(row[1]||'').trim();
+              const info = barcodeMap[bc] || {};
+              // Get product name — either from barcode map or raw cell (resolved VLOOKUP)
+              let prodName = info.name || '';
+              if (!prodName) {
+                const raw2 = String(row[2]||'').trim();
+                prodName = raw2.startsWith('=') ? (bc || 'غير محدد') : (raw2 || bc || 'غير محدد');
+              }
+              // Group
+              let grp = info.group || '';
+              if (!grp) {
+                const raw3 = String(row[3]||'').trim();
+                grp = raw3.startsWith('=') ? 'NA' : (raw3 || 'NA');
+              }
+              const toNum = v => { if (typeof v==='number') return v; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; };
+              const actualProd = toNum(row[7]);
+              const plannedProd = toNum(row[8]) || actualProd;
+              const defA = toNum(row[14]);
+              const defB = toNum(row[15]);
+              const defC = toNum(row[16]);
+              const defD = toNum(row[17]);
+              const totalDef = defA + defB + defC + defD;
+              const samples = toNum(row[13]);
+              const demerit = samples>0 ? (defA*100 + defB*50 + defC*10 + defD*1) / samples : 0;
+              let grade = 'first';
+              if (demerit >= 5) grade='reject';
+              else if (demerit >= 4) grade='5th';
+              else if (demerit >= 3) grade='fourth';
+              else if (demerit >= 2) grade='third';
+              else if (demerit >= 1) grade='second';
+              // Sigma
+              let sigma = row[29];
+              if (sigma===undefined||sigma===null||sigma==='') sigma = null;
+              else sigma = parseInt(String(sigma))||null;
+
+              const prodDate = parseDate(row[5]) || ds;
+              records.push({
+                id: uid(),
+                opDate: ds,
+                prodDate,
+                barcode: bc,
+                product: prodName,
+                group: grp,
+                batch: String(row[4]||'').trim(),
+                avgWeight: toNum(row[6]),
+                actualProd,
+                plannedProd,
+                overProcess: toNum(row[10]),
+                rework: toNum(row[11]),
+                downtime: toNum(row[12]),
+                totalSample: samples,
+                defA, defB, defC, defD,
+                totalDef,
+                demerit: Math.round(demerit*100)/100,
+                grade,
+                sigma,
+              });
+              added++;
+            });
+            log.push(`✅ REPORT: ${added} تشغيلة — إجمالي الإنتاج: ${records.reduce((a,r)=>a+r.actualProd,0).toLocaleString('ar-EG')} وحدة${rej?` · ${rej} مرفوض`:''}`);
+          }
+
+          // 3. Read NCR sheet
+          const ncrs = [];
+          const nsn = wb.SheetNames.find(s => s.toUpperCase() === 'NCR');
+          if (nsn) {
+            const nrows = XLSX.utils.sheet_to_json(wb.Sheets[nsn], { header:1, defval:'', raw:true });
+            nrows.slice(1).forEach(row => {
+              const dt = parseDate(row[2]) || parseDate(row[1]);
+              const item = String(row[3]||row[2]||'').trim();
+              const desc = String(row[5]||row[4]||'').trim();
+              const action = String(row[6]||row[5]||'').trim();
+              const pct = row[7] !== undefined ? String(row[7]||'') : '';
+              if (!dt && !item) return;
+              ncrs.push({ date: dt||'', item, batch: String(row[4]||'').trim(), desc, action, pct: pct||'' });
+            });
+            log.push(`✅ NCR: ${ncrs.length} حالة`);
+          }
+
+          // 4. Read عيوب المستلزمات sheet
+          const supDefs = [];
+          const ssn = wb.SheetNames.find(s => s.includes('عيوب') || s.includes('مستلزم'));
+          if (ssn) {
+            const srows = XLSX.utils.sheet_to_json(wb.Sheets[ssn], { header:1, defval:'', raw:true });
+            srows.slice(2).forEach(row => {
+              const item = String(row[2]||'').trim();
+              const issue = String(row[3]||'').trim();
+              const action = String(row[4]||'').trim();
+              const cause = String(row[5]||'').trim();
+              const pct = String(row[7]||'').trim();
+              const freq = String(row[8]||'').trim();
+              if (!item) return;
+              supDefs.push({ item, issue, action, cause, pct, freq });
+            });
+            log.push(`✅ عيوب المستلزمات: ${supDefs.length} حالة`);
+          }
+
+          // ── CUMULATIVE STORE: merge new file into existing hall data ───────
+          if (!S.production) S.production = { halls: {}, combined: [] };
+          if (!S.production.halls[hallKey]) {
+            S.production.halls[hallKey] = { records: [], ncrs: [], supDefs: [], barcodes: {}, batches: [] };
+          }
+          const hall = S.production.halls[hallKey];
+
+          // Merge barcodes (new overrides old for same code)
+          Object.assign(hall.barcodes, barcodeMap);
+
+          // Deduplicate records by (barcode + prodDate + batch) before merging
+          const existingKeys = new Set(hall.records.map(r => `${r.barcode}|${r.prodDate}|${r.batch}`));
+          const newRecs = records.filter(r => {
+            const k = `${r.barcode}|${r.prodDate}|${r.batch}`;
+            return !existingKeys.has(k);
+          });
+          hall.records.push(...newRecs);
+
+          // Merge NCR (deduplicate by date+item+batch)
+          const ncrKeys = new Set(hall.ncrs.map(n => `${n.date}|${n.item}|${n.batch}`));
+          ncrs.filter(n => !ncrKeys.has(`${n.date}|${n.item}|${n.batch}`)).forEach(n => hall.ncrs.push(n));
+
+          // Merge supplier defects (deduplicate by item+issue)
+          const sdKeys = new Set(hall.supDefs.map(d => `${d.item}|${d.issue}`));
+          supDefs.filter(d => !sdKeys.has(`${d.item}|${d.issue}`)).forEach(d => hall.supDefs.push(d));
+
+          // Record this batch in history
+          const batchMonths = [...new Set(records.map(r => (r.prodDate||r.opDate||'').slice(0,7)).filter(Boolean))];
+          hall.batches.push({
+            id: uid(), fileName: file.name, importedAt: new Date().toISOString(),
+            recordCount: newRecs.length, months: batchMonths,
+            totalProd: newRecs.reduce((a,r) => a+r.actualProd,0)
+          });
+          hall.fileName = file.name;
+
+          // Build combined flat array for cross-hall analysis
+          S.production.combined = [];
+          Object.entries(S.production.halls).forEach(([hk, h]) => {
+            (h.records||[]).forEach(r => S.production.combined.push({...r, _hall: hk}));
+          });
+
+          autoPopulateMonthlyProdFromIPC();
+
+          save(true); updateBadges();
+          if (statusEl) statusEl.textContent = `✅ ${hall.records.length} تشغيلة (${newRecs.length} جديدة)`;
+          if (logEl) log.push(`🔄 الإجمالي التراكمي: ${hall.records.length} تشغيلة — ${hall.batches.length} ملف`), logEl.innerHTML = log.join('<br>');
+          toast(`✅ صالة ${hallKey==='hall1'?'المصرية':'المتخصص'}: +${newRecs.length} تشغيلة جديدة (إجمالي ${hall.records.length})`);
+
+          // Re-render production page
+          renderProductionPage();
+
+        } catch(err) {
+          if (statusEl) statusEl.textContent = '❌ خطأ';
+          toast('خطأ في القراءة: ' + err.message, 'err');
+        }
+        input.value = '';
+      };
+      rdr.readAsArrayBuffer(file);
+    }
+
+    function autoPopulateMonthlyProdFromIPC() {
+      // Rebuild monthlyProduction from ALL IPC halls (cumulative)
+      // KEY RULE: production month = prodDate of the IPC run (not receipt date)
+      if (!S.production || !S.production.halls) return;
+      if (!S.groupConfig) S.groupConfig = buildDefaultGroupConfig();
+
+      // Collect all IPC records from both halls (use combined if available)
+      const allIPCRecs = [];
+      if (S.production.combined && S.production.combined.length > 0) {
+        allIPCRecs.push(...S.production.combined);
+      } else {
+        Object.entries(S.production.halls).forEach(([hallKey, h]) => {
+          if (h && h.records) h.records.forEach(r => allIPCRecs.push({ ...r, _hall: hallKey }));
+        });
+      }
+
+      // Aggregate actualProd per (groupConfigId × prodMonth)
+      // prodDate = production date of the run = what we key by
+      const grpMonthTotals = {};
+      allIPCRecs.forEach(rec => {
+        const month = (rec.prodDate || rec.opDate || '').slice(0, 7);
+        if (!month) return;
+        const matchedGid = classifyProduct(rec.product || '', rec.barcode || '');
+        if (!matchedGid) return;
+        if (!grpMonthTotals[matchedGid]) grpMonthTotals[matchedGid] = {};
+        // FIXED: always accumulate (was: if (!...) = qty which lost subsequent runs)
+        grpMonthTotals[matchedGid][month] = (grpMonthTotals[matchedGid][month] || 0) + (rec.actualProd || 0);
+      });
+
+      // Write to S.monthlyProduction — IPC data is authoritative source
+      // Manual entries (entered via modal) take precedence ONLY if they differ
+      Object.entries(grpMonthTotals).forEach(([gid, months]) => {
+        if (!S.monthlyProduction[gid]) S.monthlyProduction[gid] = {};
+        Object.entries(months).forEach(([month, ipcQty]) => {
+          // Always update from IPC — this is the correct total from the production file
+          S.monthlyProduction[gid][month] = ipcQty;
+        });
+      });
+
+      // Track which months IPC covers so we can detect manual-only months
+      window._ipcCoveredMonths = grpMonthTotals;
+    }
+
+    /* Build a per-group, per-month production map from IPC data only (for analysis) */
+    function getIPCProdByGroupMonth() {
+      const result = {}; // gid → month → qty
+      if (!S.production || !S.production.halls) return result;
+      Object.values(S.production.halls).forEach(h => {
+        if (!h || !h.records) return;
+        h.records.forEach(rec => {
+          const month = (rec.prodDate || rec.opDate || '').slice(0, 7);
+          if (!month) return;
+          const gid = classifyProduct(rec.product || '', rec.barcode || '');
+          if (!gid) return;
+          if (!result[gid]) result[gid] = {};
+          result[gid][month] = (result[gid][month] || 0) + (rec.actualProd || 0);
+        });
+      });
+      return result;
+    }
+
+    /* Get missing production months: months in returns data but not in IPC/manual prod */
+    function getMissingProdMonths() {
+      const cfg = S.groupConfig || buildDefaultGroupConfig();
+      const missing = []; // { gid, gname, month, returnQty }
+
+      // Get all prod months from returns (by prodDate)
+      const retProdMonths = {}; // gid → month → qty
+      S.records.forEach(r => {
+        const gid = classifyProduct(r.product||'', r.barcode||''); if (!gid) return;
+        const pm = getRecProdMonth(r); if (!pm) return;
+        if (!retProdMonths[gid]) retProdMonths[gid] = {};
+        retProdMonths[gid][pm] = (retProdMonths[gid][pm]||0) + (r.qty||1);
+      });
+
+      cfg.forEach(g => {
+        const mp = S.monthlyProduction[g.id] || {};
+        Object.entries(retProdMonths[g.id] || {}).forEach(([month, qty]) => {
+          if (!mp[month] || mp[month] === 0) {
+            missing.push({ gid: g.id, gname: g.name, gicon: g.icon, gcolor: g.color, month, returnQty: qty });
+          }
+        });
+      });
+      return missing;
+    }
+
+    function switchHallTab(hallKey) {
+      _activeHall = hallKey;
+      ['hall1','hall2','combined'].forEach(k => {
+        const p = _(`hall-panel-${k}`); if (p) p.style.display = k===hallKey?'':'none';
+        const b = _(`htab-${k}`); if (b) b.className = 'btn ' + (k===hallKey?'btn-gold':'btn-ghost');
+      });
+      if (hallKey === 'combined') renderCombinedAnalysis();
+    }
+
+    function renderProductionPage() {
+      ['hall1','hall2'].forEach(hk => renderHall(hk));
+      populateIPCFilterDropdowns();
+      if (_activeHall === 'combined') renderCombinedAnalysis();
+    }
+
+    /* ── Populate filter dropdowns for production page ── */
+    function populateIPCFilterDropdowns() {
+      if (!S.production || !S.production.halls) return;
+      const months = new Set();
+      const groups = new Set();
+      Object.values(S.production.halls).forEach(h => {
+        if (!h || !h.records) return;
+        h.records.forEach(r => {
+          const m = (r.prodDate || r.opDate || '').slice(0,7);
+          if (m) months.add(m);
+          if (r.group) groups.add(r.group);
+        });
+      });
+      const sortedMonths = [...months].sort().reverse();
+      const monthOpts = sortedMonths.map(m => {
+        const [y,mo] = m.split('-');
+        const MNS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+        return `<option value="${m}">${MNS[+mo-1]} ${y}</option>`;
+      }).join('');
+      const groupOpts = [...groups].sort().map(g => `<option value="${g}">${g}</option>`).join('');
+
+      ['ipc-filter-month','comb-filter-month'].forEach(id => {
+        const el = _(id); if (!el) return;
+        const cur = el.value;
+        el.innerHTML = '<option value="">كل الأشهر</option>' + monthOpts;
+        el.value = cur;
+      });
+      ['ipc-filter-group','comb-filter-group'].forEach(id => {
+        const el = _(id); if (!el) return;
+        const cur = el.value;
+        el.innerHTML = '<option value="">كل المجموعات</option>' + groupOpts;
+        el.value = cur;
+      });
+    }
+
+    /* ── Remove a specific batch from a hall ── */
+    function removeIPCBatch(hallKey, batchId) {
+      if (!confirm('حذف هذا الملف من البيانات التراكمية؟')) return;
+      const hall = S.production?.halls?.[hallKey];
+      if (!hall) return;
+      const batch = (hall.batches||[]).find(b => b.id === batchId);
+      if (!batch) return;
+      // Remove records that came from this batch's months (if no other batch covers same months)
+      const otherBatches = (hall.batches||[]).filter(b => b.id !== batchId);
+      const coveredMonths = new Set(otherBatches.flatMap(b => b.months));
+      const removedMonths = batch.months.filter(m => !coveredMonths.has(m));
+      hall.records = (hall.records||[]).filter(r => {
+        const m = (r.prodDate || r.opDate||'').slice(0,7);
+        return !removedMonths.includes(m);
+      });
+      hall.batches = otherBatches;
+      // Rebuild combined
+      S.production.combined = [];
+      Object.entries(S.production.halls).forEach(([hk,h]) => {
+        (h.records||[]).forEach(r => S.production.combined.push({...r, _hall: hk}));
+      });
+      autoPopulateMonthlyProdFromIPC();
+      save(true); updateBadges(); renderHall(hallKey);
+      toast(`🗑️ تم حذف ملف "${batch.fileName}"`, 'info');
+    }
+
+    /* ── Search/Filter IPC data in current hall ── */
+    function filterIPCData() {
+      const q = (_('ipc-search')?.value||'').trim().toLowerCase();
+      const m = _('ipc-filter-month')?.value||'';
+      const g = _('ipc-filter-group')?.value||'';
+      // Update hall group content with filtered data
+      const hk = _activeHall === 'combined' ? 'hall1' : _activeHall;
+      const hall = S.production?.halls?.[hk];
+      if (!hall || !hall.records) return;
+      let recs = hall.records;
+      if (m) recs = recs.filter(r => (r.prodDate||r.opDate||'').startsWith(m));
+      if (g) recs = recs.filter(r => r.group === g);
+      if (q) recs = recs.filter(r =>
+        (r.product||'').toLowerCase().includes(q) ||
+        (r.barcode||'').toLowerCase().includes(q) ||
+        (r.batch||'').toLowerCase().includes(q)
+      );
+      // Re-render group content with filtered records
+      const contentEl = _(`${hk}-group-content`);
+      if (contentEl && recs.length !== hall.records.length) {
+        const activeGrp = _activeGroup[hk];
+        const grpRecs = activeGrp ? recs.filter(r => r.group?.toLowerCase().trim() === activeGrp.toLowerCase().trim()) : recs;
+        contentEl.innerHTML = renderGroupProductTable(grpRecs, hall, activeGrp||'');
+        const infoBar = contentEl.querySelector('.filter-info-bar');
+        if (!infoBar) {
+          contentEl.insertAdjacentHTML('afterbegin', `<div class="filter-info-bar" style="background:var(--bg4);border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:var(--amber)">🔍 تصفية نشطة — ${recs.length} تشغيلة من ${hall.records.length}</div>`);
+        }
+      } else {
+        renderHall(hk);
+      }
+    }
+
+    /* ── Combined Analysis: merged table from both halls ── */
+    function renderCombinedAnalysis() {
+      const combMonthSel = _('comb-filter-month')?.value||'';
+      const combGroupSel = _('comb-filter-group')?.value||'';
+      const combHallSel  = _('comb-filter-hall')?.value||'';
+      const combSearch   = (_('comb-search')?.value||'').trim().toLowerCase();
+
+      if (!S.production || !S.production.halls) {
+        const tw = _('combined-table-wrap');
+        if (tw) tw.innerHTML = '<div style="text-align:center;padding:40px;color:var(--txt3)">لم يتم رفع ملفات إنتاج بعد</div>';
+        return;
+      }
+
+      // Aggregate records from both halls
+      const allRecs = [];
+      Object.entries(S.production.halls).forEach(([hk, h]) => {
+        if (!h || !h.records) return;
+        if (combHallSel && hk !== combHallSel) return;
+        h.records.forEach(r => allRecs.push({...r, _hall: hk}));
+      });
+
+      // Apply filters
+      let filtered = allRecs;
+      if (combMonthSel) filtered = filtered.filter(r => (r.prodDate||r.opDate||'').startsWith(combMonthSel));
+      if (combGroupSel) filtered = filtered.filter(r => r.group === combGroupSel);
+      if (combSearch) filtered = filtered.filter(r =>
+        (r.product||'').toLowerCase().includes(combSearch) ||
+        (r.barcode||'').toLowerCase().includes(combSearch)
+      );
+
+      // Aggregate by product barcode
+      const prodMap = {};
+      filtered.forEach(r => {
+        const key = r.barcode || r.product;
+        if (!prodMap[key]) prodMap[key] = {
+          barcode: r.barcode, product: r.product, group: r.group,
+          hall1Prod: 0, hall2Prod: 0, totalProd: 0, runs: 0,
+          defA:0, defB:0, defC:0, defD:0, totalDef:0,
+          totalSample:0, rework:0, sigmas:[], grades:[]
+        };
+        const p = prodMap[key];
+        p.totalProd += (r.actualProd||0);
+        if (r._hall==='hall1') p.hall1Prod += (r.actualProd||0);
+        else p.hall2Prod += (r.actualProd||0);
+        p.runs++;
+        p.defA+=(r.defA||0); p.defB+=(r.defB||0); p.defC+=(r.defC||0); p.defD+=(r.defD||0);
+        p.totalDef+=(r.totalDef||0); p.totalSample+=(r.totalSample||0);
+        p.rework+=(r.rework||0);
+        if (r.sigma!=null) p.sigmas.push(r.sigma);
+        if (r.grade) p.grades.push(r.grade);
+      });
+
+      const products = Object.values(prodMap).sort((a,b)=>b.totalProd-a.totalProd);
+
+      // Grand totals
+      const gtProd  = products.reduce((a,p)=>a+p.totalProd,0);
+      const gtRework = products.reduce((a,p)=>a+p.rework,0);
+      const gtDef   = products.reduce((a,p)=>a+p.totalDef,0);
+      const gtSamp  = products.reduce((a,p)=>a+p.totalSample,0);
+      const allSigmas = products.flatMap(p=>p.sigmas);
+      const avgSig = allSigmas.length ? (allSigmas.reduce((a,b)=>a+b,0)/allSigmas.length).toFixed(1) : '—';
+      const defRate = gtSamp > 0 ? (gtDef/gtSamp*100).toFixed(2) : '—';
+
+      // Returns integration
+      const retMap = {};
+      S.records.forEach(r => {
+        const bc = String(r.barcode||'').trim();
+        retMap[bc] = (retMap[bc]||0) + (r.qty||1);
+      });
+      const gtRet = products.reduce((a,p) => a+(retMap[p.barcode||p.product]||0), 0);
+      const gtRetRate = gtProd > 0 && gtRet > 0 ? (gtRet/gtProd*100).toFixed(2) : '—';
+
+      // KPI bar
+      const kpisEl = _('combined-kpis');
+      if (kpisEl) kpisEl.innerHTML = [
+        ['إجمالي الإنتاج', gtProd.toLocaleString('ar-EG'), 'var(--cyan)'],
+        ['متوسط سيجما', `${avgSig} σ`, 'var(--em)'],
+        ['معدل العيوب', `${defRate}%`, 'var(--amber)'],
+        ['نسبة المرتجعات', gtRet>0?`${gtRetRate}%`:'—', parseFloat(gtRetRate)>5?'var(--red)':parseFloat(gtRetRate)>2?'var(--amber)':'var(--em)'],
+        ['إعادة تشغيل', gtRework.toLocaleString('ar-EG'), 'var(--gold)'],
+        ['عدد الأصناف', products.length, 'var(--blue)'],
+        ['تشغيلات', filtered.length, 'var(--violet)'],
+        ['المرتجعات', gtRet.toLocaleString('ar-EG'), 'var(--red2)'],
+      ].map(([lbl,val,clr]) => `<div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:16px;font-weight:900;color:${clr}">${val}</div>
+        <div style="font-size:9px;color:var(--txt3)">${lbl}</div>
+      </div>`).join('');
+
+      const SIGMA_C = {6:'var(--em)',5:'var(--cyan)',4:'var(--blue)',3:'var(--gold)',2:'var(--amber)',1:'var(--orange)',0:'var(--red)'};
+      const GRADE_AR = {first:'ممتاز جداً',second:'ممتاز',third:'جيد جداً',fourth:'جيد','5th':'مقبول',reject:'مرفوض'};
+      const GRADE_C = {first:'var(--em)',second:'var(--cyan)',third:'var(--blue)',fourth:'var(--gold)','5th':'var(--amber)',reject:'var(--red)'};
+
+      const tw = _('combined-table-wrap');
+      if (!tw) return;
+
+      if (!products.length) {
+        tw.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3)">لا توجد بيانات تطابق الفلتر المحدد</div>';
+        return;
+      }
+
+      // Group separator rows
+      const groupOrder = ['Honey Automation','Honey Manual','Manual','Oil Semi Automation','External','external','TEA Automation','NA'];
+      const groupedProducts = {};
+      products.forEach(p => {
+        const g = p.group||'NA';
+        if (!groupedProducts[g]) groupedProducts[g] = [];
+        groupedProducts[g].push(p);
+      });
+      const orderedGroups = groupOrder.filter(g => groupedProducts[g]);
+      Object.keys(groupedProducts).filter(g => !orderedGroups.includes(g)).forEach(g => orderedGroups.push(g));
+
+      let rows = '';
+      orderedGroups.forEach(grpKey => {
+        const grpProds = groupedProducts[grpKey];
+        const grpTotal = grpProds.reduce((a,p)=>a+p.totalProd,0);
+        const grpRet = grpProds.reduce((a,p)=>a+(retMap[p.barcode||p.product]||0),0);
+        const grpRetRate = grpTotal>0&&grpRet>0 ? (grpRet/grpTotal*100).toFixed(1) : '—';
+        rows += `<tr style="background:var(--bg4)">
+          <td colspan="14" style="padding:6px 10px;font-size:11px;font-weight:800;color:var(--gold)">
+            📂 ${grpKey} — إنتاج: ${grpTotal.toLocaleString('ar-EG')} | مرتجعات: ${grpRet} | نسبة: ${grpRetRate}${grpRetRate!=='—'?'%':''}
+          </td>
+        </tr>`;
+        grpProds.forEach(p => {
+          const avgSig = p.sigmas.length ? Math.round(p.sigmas.reduce((a,b)=>a+b)/p.sigmas.length) : null;
+          const sigC = avgSig!=null ? (SIGMA_C[avgSig]||'var(--txt2)') : 'var(--txt3)';
+          const gradeCount = {}; p.grades.forEach(g => gradeCount[g]=(gradeCount[g]||0)+1);
+          const bestGrade = p.grades.length ? Object.entries(gradeCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
+          const ret = retMap[p.barcode||p.product]||0;
+          const retRate = p.totalProd>0&&ret>0 ? (ret/p.totalProd*100).toFixed(2) : null;
+          const retC = retRate ? (parseFloat(retRate)>5?'var(--red)':parseFloat(retRate)>2?'var(--amber)':'var(--em)') : 'var(--txt4)';
+          rows += `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+            <td style="padding:6px 8px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600" title="${p.product}">${p.product}</td>
+            <td style="padding:6px;text-align:center;font-size:10px">${p.hall1Prod>0?`<span style="color:var(--cyan)">${p.hall1Prod.toLocaleString('ar-EG')}</span>`:'—'}</td>
+            <td style="padding:6px;text-align:center;font-size:10px">${p.hall2Prod>0?`<span style="color:var(--blue)">${p.hall2Prod.toLocaleString('ar-EG')}</span>`:'—'}</td>
+            <td style="padding:6px;text-align:center;font-weight:800;color:var(--cyan);font-size:11px">${p.totalProd.toLocaleString('ar-EG')}</td>
+            <td style="padding:6px;text-align:center;font-size:10px">${p.runs}</td>
+            <td style="padding:6px;text-align:center;color:${p.defA>0?'var(--red)':'var(--txt4)'};font-weight:${p.defA>0?700:400};font-size:10px">${p.defA||'—'}</td>
+            <td style="padding:6px;text-align:center;color:${p.defB>0?'var(--orange)':'var(--txt4)'};font-size:10px">${p.defB||'—'}</td>
+            <td style="padding:6px;text-align:center;color:${p.defC>0?'var(--amber)':'var(--txt4)'};font-size:10px">${p.defC||'—'}</td>
+            <td style="padding:6px;text-align:center;color:${p.defD>0?'var(--gold)':'var(--txt4)'};font-size:10px">${p.defD||'—'}</td>
+            <td style="padding:6px;text-align:center;color:${p.rework>0?'var(--violet)':'var(--txt4)'};font-size:10px">${p.rework||'—'}</td>
+            <td style="padding:6px;text-align:center;font-weight:800;color:${sigC};font-size:10px">${avgSig!=null?avgSig+' σ':'—'}</td>
+            <td style="padding:6px;text-align:center;font-size:9px;color:${bestGrade?(GRADE_C[bestGrade]||'var(--txt2)'):'var(--txt4)'};font-weight:700">${bestGrade?(GRADE_AR[bestGrade]||bestGrade):'—'}</td>
+            <td style="padding:6px;text-align:center;font-weight:800;color:${retC};font-size:10px">${ret>0?ret:'—'}</td>
+            <td style="padding:6px;text-align:center;font-weight:800;color:${retC};font-size:10px">${retRate?retRate+'%':'—'}</td>
+          </tr>`;
+        });
+      });
+
+      tw.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:var(--bg4);color:var(--txt2)">
+          <th style="padding:7px 8px;text-align:right;border-bottom:1px solid var(--border)">المنتج</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--cyan)">🏭 المصرية</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--blue)">🏭 المتخصص</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الإجمالي</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">تشغيلات</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🔴 A</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟠 B</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟡 C</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟢 D</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">Rework</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">σ</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الجودة</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">مرتجعات</th>
+          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">نسبة المرتجع</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function renderHall(hallKey) {
+      const hall = S.production?.halls?.[hallKey];
+      // Support both old (single-file) and new (cumulative) structure
+      if (hall && !hall.batches) {
+        hall.batches = [{ id: uid(), fileName: hall.fileName||'ملف قديم', importedAt: hall.importedAt||new Date().toISOString(), recordCount: (hall.records||[]).length, months: [...new Set((hall.records||[]).map(r=>(r.prodDate||r.opDate||'').slice(0,7)).filter(Boolean))], totalProd: (hall.records||[]).reduce((a,r)=>a+r.actualProd,0) }];
+      }
+      const emptyEl    = _(`${hallKey}-empty`);
+      const groupTabsEl = _(`${hallKey}-group-tabs`);
+      const kpisEl     = _(`${hallKey}-summary-kpis`);
+
+      if (!hall || !hall.records || hall.records.length === 0) {
+        if (emptyEl) emptyEl.style.display = '';
+        if (groupTabsEl) groupTabsEl.style.display = 'none';
+        if (kpisEl) kpisEl.innerHTML = '<div style="color:var(--txt3)">لا توجد بيانات بعد</div>';
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (groupTabsEl) groupTabsEl.style.display = '';
+
+      const recs = hall.records;
+      const totalProd   = recs.reduce((a,r)=>a+r.actualProd,0);
+      const totalDef    = recs.reduce((a,r)=>a+r.totalDef,0);
+      const totalSamp   = recs.reduce((a,r)=>a+r.totalSample,0);
+      const totalRework = recs.reduce((a,r)=>a+r.rework,0);
+      const avgSigma    = recs.filter(r=>r.sigma!==null).length > 0
+        ? (recs.filter(r=>r.sigma!==null).reduce((a,r)=>a+r.sigma,0) / recs.filter(r=>r.sigma!==null).length).toFixed(1)
+        : '—';
+      const defRate = totalSamp > 0 ? (totalDef/totalSamp*100).toFixed(2) : '—';
+
+      // ── Returns matched by barcode (all returns for this hall's products) ──
+      const hallBarcodes = new Set(recs.map(r=>String(r.barcode||'').trim()));
+      let hallReturns = 0;
+      const hallRetByMonth = {};
+      S.records.forEach(r => {
+        const bc = String(r.barcode||'').trim();
+        if (!hallBarcodes.has(bc)) return;
+        const qty = r.qty||1;
+        hallReturns += qty;
+        const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
+        if (pm) hallRetByMonth[pm] = (hallRetByMonth[pm]||0) + qty;
+      });
+      const returnRate = totalProd > 0 ? (hallReturns/totalProd*100).toFixed(2) : '—';
+      const retColor   = parseFloat(returnRate)>5?'var(--red)':parseFloat(returnRate)>2?'var(--amber)':'var(--em)';
+
+      // Render batch history
+      const batchesEl = _(`${hallKey}-batches`);
+      if (batchesEl && hall.batches && hall.batches.length > 0) {
+        batchesEl.innerHTML = `<div style="margin-top:8px">
+          <div style="font-size:10px;color:var(--txt3);font-weight:700;margin-bottom:5px">📁 الملفات المُضافة (${hall.batches.length})</div>
+          <div style="max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+            ${hall.batches.map((b,i) => `
+              <div style="display:flex;align-items:center;gap:7px;background:var(--bg4);border-radius:6px;padding:5px 8px;font-size:10px">
+                <span style="color:var(--cyan);font-weight:700">${i+1}</span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2)">${b.fileName}</span>
+                <span style="color:var(--txt3);white-space:nowrap">${b.months.length} شهر · ${b.recordCount} تشغيلة</span>
+                <span style="color:var(--txt4);white-space:nowrap">${new Date(b.importedAt).toLocaleDateString('ar-EG')}</span>
+                <button onclick="removeIPCBatch('${hallKey}','${b.id}')" style="background:transparent;border:none;color:var(--red2);cursor:pointer;font-size:11px;padding:0 3px" title="حذف هذا الملف">✕</button>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      } else if (batchesEl) {
+        batchesEl.innerHTML = '';
+      }
+
+      // KPIs — now includes returns
+      if (kpisEl) kpisEl.innerHTML = `
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:var(--cyan)">${totalProd.toLocaleString('ar-EG')}</div>
+          <div style="font-size:10px;color:var(--txt2)">إجمالي الإنتاج</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:var(--red)">${hallReturns.toLocaleString('ar-EG')}</div>
+          <div style="font-size:10px;color:var(--txt2)">إجمالي المرتجعات</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:${retColor}">${returnRate}%</div>
+          <div style="font-size:10px;color:var(--txt2)">نسبة المرتجعات</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:var(--em)">${avgSigma} σ</div>
+          <div style="font-size:10px;color:var(--txt2)">متوسط سيجما</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:var(--amber)">${defRate}%</div>
+          <div style="font-size:10px;color:var(--txt2)">معدل العيوب</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:var(--gold)">${totalRework.toLocaleString('ar-EG')}</div>
+          <div style="font-size:10px;color:var(--txt2)">إعادة تشغيل (Rework)</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:var(--blue)">${recs.length}</div>
+          <div style="font-size:10px;color:var(--txt2)">تشغيلات</div>
+        </div>
+        ${Object.keys(hallRetByMonth).length > 0 ? `
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;grid-column:span 2">
+          <div style="font-size:10px;color:var(--txt3);font-weight:700;margin-bottom:5px">📅 المرتجعات الشهرية</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            ${Object.entries(hallRetByMonth).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6).map(([m,q])=>{
+              const [y,mo]=m.split('-');
+              const prodM = recs.filter(r=>(r.prodDate||r.opDate||'').startsWith(m)).reduce((a,r)=>a+r.actualProd,0);
+              const rt = prodM>0?(q/prodM*100).toFixed(1):'—';
+              return `<div style="background:var(--bg4);border-radius:5px;padding:4px 8px;text-align:center;min-width:72px">
+                <div style="font-size:9px;color:var(--txt3)">${MN_SHORT[+mo-1]} ${y.slice(2)}</div>
+                <div style="font-size:12px;font-weight:900;color:var(--red)">${q}</div>
+                <div style="font-size:9px;color:${rt==='—'?'var(--txt4)':parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'}">${rt!=='—'?rt+'%':'—'}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : `
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center;grid-column:span 2">
+          <div style="font-size:11px;color:var(--txt3)">📁 ${hall.fileName || ''} — مستورد ${hall.importedAt ? new Date(hall.importedAt).toLocaleDateString('ar-EG') : ''}</div>
+        </div>`}
+      `;
+
+      // Get unique groups in priority order
+      const allGroups = [...new Set(recs.map(r=>r.group))];
+      const orderedGroups = PROD_GROUPS.filter(g => allGroups.some(ag => ag.toLowerCase().trim() === g.key.toLowerCase().trim()))
+        .map(g => g.key);
+      allGroups.filter(g => !orderedGroups.includes(g)).forEach(g => orderedGroups.push(g));
+
+      if (!_activeGroup[hallKey] || !orderedGroups.includes(_activeGroup[hallKey])) {
+        _activeGroup[hallKey] = orderedGroups[0];
+      }
+
+      const tabBtnsEl = _(`${hallKey}-group-tab-btns`);
+      if (tabBtnsEl) {
+        tabBtnsEl.innerHTML = orderedGroups.map(grp => {
+          const gDef = PROD_GROUPS.find(g => g.key.toLowerCase().trim() === grp.toLowerCase().trim());
+          const label = gDef ? gDef.label : grp;
+          const grpRecs = recs.filter(r => r.group.toLowerCase().trim() === grp.toLowerCase().trim());
+          // Show return count per group tab
+          const grpBarcodes = new Set(grpRecs.map(r=>String(r.barcode||'').trim()));
+          const grpRet = S.records.filter(r=>grpBarcodes.has(String(r.barcode||'').trim())).reduce((a,r)=>a+(r.qty||1),0);
+          const active = _activeGroup[hallKey] === grp;
+          return `<button class="btn ${active?'btn-gold':'btn-ghost'}" style="font-size:11px"
+            onclick="_activeGroup['${hallKey}']='${grp.replace(/'/g,"\'")}';renderHall('${hallKey}')"
+          >${label} <span style="font-size:10px;opacity:.7">${grpRecs.length}</span>${grpRet>0?` <span style="font-size:9px;color:${active?'var(--bg)':'var(--red2)'}">↩${grpRet}</span>`:''}</button>`;
+        }).join('');
+      }
+
+      const contentEl = _(`${hallKey}-group-content`);
+      if (contentEl) {
+        const activeGrp = _activeGroup[hallKey];
+        const grpRecs = recs.filter(r => r.group.toLowerCase().trim() === activeGrp.toLowerCase().trim());
+        contentEl.innerHTML = renderGroupProductTable(grpRecs, hall, activeGrp);
+      }
+
+      renderNCR(hallKey, hall.ncrs || []);
+      renderSupDef(hallKey, hall.supDefs || []);
+    }
+
+    function computeHallReturns(hall) {
+      // Match returns by barcode and production date month
+      const returnRecs = S.records;
+      let total = 0;
+      const barcodes = new Set((hall.records||[]).map(r=>r.barcode));
+      returnRecs.forEach(r => {
+        const bc = String(r.barcode||'').trim();
+        if (barcodes.has(bc)) total += (r.qty||1);
+      });
+      return total;
+    }
+
+    /* Match returns by barcode OR product name. prodDateMonth filters by production month. */
+    function computeProductReturns(barcodeOrName, prodDateMonth) {
+      let qty = 0;
+      const q = String(barcodeOrName||'').trim().toLowerCase();
+      S.records.forEach(r => {
+        const rbc = String(r.barcode||'').trim();
+        const rnm = (r.product||'').toLowerCase();
+        if (rbc !== barcodeOrName && rnm !== q) return;
+        if (prodDateMonth) {
+          const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
+          if (pm !== prodDateMonth) return;
+        }
+        qty += (r.qty||1);
+      });
+      return qty;
+    }
+
+    function renderGroupProductTable(grpRecs, hall, activeGrp) {
+      if (!grpRecs.length) return '<div style="color:var(--txt3);padding:20px;text-align:center">لا توجد تشغيلات لهذه المجموعة</div>';
+
+      // ── Aggregate by product ──────────────────────────────────────────
+      const prodMap = {};
+      grpRecs.forEach(r => {
+        const key = r.barcode || r.product;
+        if (!prodMap[key]) prodMap[key] = {
+          product: r.product, barcode: String(r.barcode||'').trim(), group: r.group,
+          runs:0, totalProd:0, totalSample:0,
+          defA:0, defB:0, defC:0, defD:0, totalDef:0, rework:0,
+          sigmas:[], grades:[], prodByMonth:{}
+        };
+        const p = prodMap[key];
+        p.runs++;
+        p.totalProd    += r.actualProd;
+        p.totalSample  += r.totalSample;
+        p.defA+=r.defA; p.defB+=r.defB; p.defC+=r.defC; p.defD+=r.defD;
+        p.totalDef     += r.totalDef;
+        p.rework       += r.rework;
+        if (r.sigma!=null) p.sigmas.push(r.sigma);
+        if (r.grade) p.grades.push(r.grade);
+        const m = (r.prodDate||r.opDate||'').slice(0,7);
+        if (m) p.prodByMonth[m] = (p.prodByMonth[m]||0) + r.actualProd;
+      });
+      const products = Object.values(prodMap).sort((a,b)=>b.totalProd-a.totalProd);
+
+      // ── Group-level stats ─────────────────────────────────────────────
+      const grpTotal   = grpRecs.reduce((a,r)=>a+r.actualProd,0);
+      const grpDef     = grpRecs.reduce((a,r)=>a+r.totalDef,0);
+      const grpSamp    = grpRecs.reduce((a,r)=>a+r.totalSample,0);
+      const grpRework  = grpRecs.reduce((a,r)=>a+r.rework,0);
+      const grpSigmas  = grpRecs.filter(r=>r.sigma!=null).map(r=>r.sigma);
+      const grpAvgSig  = grpSigmas.length ? (grpSigmas.reduce((a,b)=>a+b)/grpSigmas.length).toFixed(1) : '—';
+      const grpDefRate = grpSamp>0 ? (grpDef/grpSamp*100).toFixed(2) : '—';
+
+      // ── Group returns: match by barcode OR product name ───────────────
+      const barcodeSet = new Set(products.map(p=>p.barcode.toLowerCase()).filter(Boolean));
+      const productSet = new Set(products.map(p=>(p.product||'').toLowerCase()).filter(Boolean));
+      let grpReturns = 0;
+      const grpRetByMonth = {}; // prodMonth → qty
+      S.records.forEach(r => {
+        const rbc = String(r.barcode||'').trim().toLowerCase();
+        const rnm = (r.product||'').toLowerCase();
+        if (!barcodeSet.has(rbc) && !productSet.has(rnm)) return;
+        const qty = r.qty||1;
+        grpReturns += qty;
+        // Key by prodDate month (accurate)
+        const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
+        if (pm) grpRetByMonth[pm] = (grpRetByMonth[pm]||0) + qty;
+      });
+      const grpRetRate   = grpTotal>0 ? (grpReturns/grpTotal*100).toFixed(2) : '—';
+      const grpRetRatePF = parseFloat(grpRetRate)||0;
+      const grpRetCls    = grpRetRatePF>5?'rate-bad':grpRetRatePF>2?'rate-warn':'rate-good';
+
+      // ── Group KPI strip ───────────────────────────────────────────────
+      const kpiCard = (val, lbl, clr) =>
+        `<div style="background:var(--bg4);border-radius:7px;padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:900;color:${clr}">${val}</div>
+          <div style="font-size:9px;color:var(--txt3)">${lbl}</div>
+        </div>`;
+
+      let html = `<div class="card" style="padding:12px;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px">
+          ${kpiCard(grpTotal.toLocaleString('ar-EG'), 'إجمالي الإنتاج', 'var(--cyan)')}
+          ${kpiCard(grpAvgSig+' σ', 'متوسط سيجما', 'var(--em)')}
+          ${kpiCard(grpDefRate+'%', 'معدل العيوب', 'var(--amber)')}
+          ${kpiCard(grpRework.toLocaleString('ar-EG'), 'إعادة تشغيل', 'var(--gold)')}
+          ${kpiCard(grpReturns.toLocaleString('ar-EG'), '↩ كمية المرتجعات', grpReturns>0?'var(--red)':'var(--txt3)')}
+          ${kpiCard(grpRetRate!=='—'?grpRetRate+'%':'—', '📊 نسبة المرتجعات', grpRetRatePF>5?'var(--red)':grpRetRatePF>2?'var(--amber)':'var(--em)')}
+        </div>
+
+        <!-- Monthly returns for this group -->
+        ${Object.keys(grpRetByMonth).length ? `
+        <div style="margin-bottom:12px;padding:8px 10px;background:var(--bg4);border-radius:8px">
+          <div style="font-size:10px;color:var(--txt3);font-weight:700;margin-bottom:7px">📅 المرتجعات الشهرية للمجموعة (حسب شهر الإنتاج)</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            ${Object.entries(grpRetByMonth).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,retQ])=>{
+              const [y,mo]=m.split('-');
+              const prodQ = grpRecs.filter(r=>(r.prodDate||r.opDate||'').startsWith(m)).reduce((a,r)=>a+r.actualProd,0);
+              const rt = prodQ>0?(retQ/prodQ*100).toFixed(1):null;
+              const rtC = rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'var(--txt4)';
+              return `<div style="background:var(--bg3);border-radius:6px;padding:7px 10px;text-align:center;min-width:75px;border-top:2px solid ${rt?rtC:'var(--border)'}">
+                <div style="font-size:9px;color:var(--txt3)">${MN_SHORT[+mo-1]} ${y}</div>
+                <div style="font-size:14px;font-weight:900;color:var(--red)">↩ ${retQ}</div>
+                ${prodQ?`<div style="font-size:9px;color:var(--cyan)">🏭 ${prodQ.toLocaleString('ar-EG')}</div>`:''}
+                ${rt?`<div style="font-size:11px;font-weight:900;color:${rtC}">${rt}%</div>`:'<div style="font-size:9px;color:var(--txt4)">—</div>'}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Product detail table -->
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+          <thead>
+            <tr style="background:var(--bg4);color:var(--txt2)">
+              <th style="padding:7px 8px;text-align:right;border-bottom:1px solid var(--border)">المنتج</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🏭 الإنتاج</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">تشغيلات</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="عيوب خطيرة">🔴A</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="تسييل/زجاج">🟠B</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="استيكرات">🟡C</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="كرتون">🟢D</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">Rework</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">σ</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الجودة</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--red2)">↩ مرتجع</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--red2)">نسبة ↩</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      products.forEach(p => {
+        // Sigma + grade
+        const avgSig    = p.sigmas.length ? Math.round(p.sigmas.reduce((a,b)=>a+b)/p.sigmas.length) : null;
+        const sigColor  = avgSig!=null ? (SIGMA_COLORS[avgSig]||'var(--txt2)') : 'var(--txt3)';
+        const gradeCount= {}; p.grades.forEach(g=>gradeCount[g]=(gradeCount[g]||0)+1);
+        const bestGrade = p.grades.length ? Object.entries(gradeCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
+        const gradeColor= bestGrade?(GRADE_COLOR[bestGrade]||'var(--txt2)'):'var(--txt3)';
+        const gradeLabel= bestGrade?(GRADE_AR[bestGrade]||bestGrade):'—';
+
+        // Returns for this product (barcode OR name, by prodDate month)
+        let retQty = 0;
+        const retByMonth = {};
+        const pbc = p.barcode.toLowerCase();
+        const pnm = (p.product||'').toLowerCase();
+        S.records.forEach(r => {
+          const rbc = String(r.barcode||'').trim().toLowerCase();
+          const rnm = (r.product||'').toLowerCase();
+          if (rbc !== pbc && rnm !== pnm) return;
+          const qty = r.qty||1;
+          retQty += qty;
+          const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
+          if (pm) retByMonth[pm] = (retByMonth[pm]||0) + qty;
+        });
+
+        const retRate  = p.totalProd>0&&retQty>0 ? (retQty/p.totalProd*100).toFixed(2) : null;
+        const retColor = retRate ? (parseFloat(retRate)>5?'var(--red)':parseFloat(retRate)>2?'var(--amber)':'var(--em)') : 'var(--txt3)';
+
+        // Per-month mini breakdown under product name
+        const monthLines = Object.entries(retByMonth).sort((a,b)=>a[0].localeCompare(b[0]))
+          .map(([m,q])=>{
+            const [y,mo]=m.split('-');
+            const pM=p.prodByMonth[m]||0;
+            const rt=pM>0?(q/pM*100).toFixed(1)+'%':'';
+            return `${MN_SHORT[+mo-1]}${y.slice(2)}:${q}${rt?'('+rt+')':''}`;
+          }).join(' · ');
+
+        html += `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+          <td style="padding:6px 8px;font-weight:600;max-width:180px">
+            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.product}">${p.product}</div>
+            ${monthLines?`<div style="font-size:8px;color:var(--txt4);margin-top:2px">↩ ${monthLines}</div>`:''}
+          </td>
+          <td style="padding:6px 5px;text-align:center;font-weight:700;color:var(--cyan)">${p.totalProd.toLocaleString('ar-EG')}</td>
+          <td style="padding:6px 5px;text-align:center;color:var(--txt2)">${p.runs}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defA>0?'var(--red)':'var(--txt3)'};font-weight:${p.defA>0?700:400}">${p.defA||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defB>0?'var(--orange)':'var(--txt3)'};font-weight:${p.defB>0?700:400}">${p.defB||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defC>0?'var(--amber)':'var(--txt3)'};font-weight:${p.defC>0?700:400}">${p.defC||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defD>0?'var(--gold)':'var(--txt3)'};font-weight:${p.defD>0?700:400}">${p.defD||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.rework>0?'var(--violet)':'var(--txt3)'}">${p.rework||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;font-weight:800;color:${sigColor}">${avgSig!=null?avgSig+' σ':'—'}</td>
+          <td style="padding:6px 5px;text-align:center;font-size:10px;color:${gradeColor};font-weight:700">${gradeLabel}</td>
+          <td style="padding:6px 5px;text-align:center;font-weight:800;font-size:12px;color:${retQty>0?retColor:'var(--txt3)'}">
+            ${retQty>0?retQty.toLocaleString('ar-EG'):'—'}
+          </td>
+          <td style="padding:6px 5px;text-align:center;font-weight:900;font-size:12px;color:${retColor}">
+            ${retRate?retRate+'%':'—'}
+          </td>
+        </tr>`;
+      });
+
+      // Group totals row
+      html += `<tr style="background:var(--bg4);font-weight:900;border-top:2px solid var(--border2)">
+        <td style="padding:7px 8px;color:var(--gold)">📊 إجمالي المجموعة</td>
+        <td style="text-align:center;padding:7px;color:var(--cyan);font-size:13px">${grpTotal.toLocaleString('ar-EG')}</td>
+        <td style="text-align:center;padding:7px;color:var(--txt2)">${grpRecs.length}</td>
+        <td colspan="6"></td>
+        <td style="text-align:center;padding:7px;font-size:13px;font-weight:900;color:${grpReturns>0?'var(--red)':'var(--txt3)'}">
+          ${grpReturns>0?grpReturns.toLocaleString('ar-EG'):'—'}
+        </td>
+        <td style="text-align:center;padding:7px">
+          <span class="rate-chip ${grpRetCls}">${grpRetRate!=='—'?grpRetRate+'%':'—'}</span>
+        </td>
+      </tr>
+      </tbody></table></div>
+
+      <!-- Defect legend -->
+      <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;font-size:9.5px;color:var(--txt3)">
+        <span>🔴 A = عيوب خطيرة (شوائب، زجاج، وزن) — وزن: 100</span>
+        <span>🟠 B = تسييل، زجاج، غطاء، استيكر — وزن: 50</span>
+        <span>🟡 C = استيكرات، كرتون — وزن: 10</span>
+        <span>🟢 D = كرتون خارجي — وزن: 1</span>
+      </div>
+      </div>`;
+
+      return html;
+    }
+    function renderNCR(hallKey, ncrs) {
+      const el = _(`${hallKey}-ncr-content`);
+      const section = _(`${hallKey}-ncr-section`);
+      if (!el || !section) return;
+      if (!ncrs || !ncrs.length) { section.style.display='none'; return; }
+      section.style.display='';
+      el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:var(--bg4);color:var(--txt2)">
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">التاريخ</th>
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">الصنف</th>
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">التشغيلة</th>
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">المشكلة</th>
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">الإجراء</th>
+          <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">النسبة%</th>
+        </tr></thead>
+        <tbody>${ncrs.map(n=>`<tr style="border-bottom:1px solid var(--border);font-size:10.5px">
+          <td style="padding:5px 6px;color:var(--txt2);white-space:nowrap">${n.date||'—'}</td>
+          <td style="padding:5px 6px;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${n.item}">${n.item||'—'}</td>
+          <td style="padding:5px 6px;color:var(--txt3)">${n.batch||'—'}</td>
+          <td style="padding:5px 6px;max-width:200px;color:var(--amber)" title="${n.desc}">${n.desc||'—'}</td>
+          <td style="padding:5px 6px;max-width:180px;color:var(--em)" title="${n.action}">${n.action||'—'}</td>
+          <td style="padding:5px 6px;text-align:center;color:var(--red);font-weight:700">${n.pct||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    }
+
+    function renderSupDef(hallKey, supDefs) {
+      const el = _(`${hallKey}-supdef-content`);
+      const section = _(`${hallKey}-supdef-section`);
+      if (!el || !section) return;
+      if (!supDefs || !supDefs.length) { section.style.display='none'; return; }
+      section.style.display='';
+      el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:var(--bg4);color:var(--txt2)">
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">المستلزم</th>
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">حالة عدم المطابقة</th>
+          <th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">الإجراء التصحيحي</th>
+          <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">نسبة العيب</th>
+          <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">تكرار</th>
+        </tr></thead>
+        <tbody>${supDefs.map(d=>`<tr style="border-bottom:1px solid var(--border);font-size:10.5px">
+          <td style="padding:5px 6px;font-weight:600;color:var(--gold);max-width:130px" title="${d.item}">${d.item}</td>
+          <td style="padding:5px 6px;max-width:200px;color:var(--red2)" title="${d.issue}">${d.issue||'—'}</td>
+          <td style="padding:5px 6px;max-width:180px;color:var(--em)" title="${d.action}">${d.action||'—'}</td>
+          <td style="padding:5px 6px;text-align:center;color:var(--amber);font-weight:700">${d.pct||'—'}</td>
+          <td style="padding:5px 6px;text-align:center;color:${d.freq&&d.freq.includes('متكرر')?'var(--red)':'var(--txt3)'}">${d.freq||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -5678,42 +6875,38 @@
       const cacheKey = `${name}|${barcode}`;
       if (_classCache.has(cacheKey)) return _classCache.get(cacheKey);
 
-      const cfg = S.groupConfig || buildDefaultGroupConfig();
-      const text = normStr(name) + ' ' + normStr(barcode);
+      const cfg  = S.groupConfig || buildDefaultGroupConfig();
+      const nm   = normStr(name||'').toLowerCase();
+      const bc   = String(barcode||'').trim();
+      const text = nm + ' ' + bc.toLowerCase();
 
-      // 1. Check manual overrides first
+      // 0. Explicit barcode moves — highest priority
       for (const g of cfg) {
-        if (g.manualItems.some(item =>
-          normStr(item).toLowerCase() === normStr(name).toLowerCase() ||
-          normStr(item).toLowerCase() === normStr(barcode).toLowerCase()
-        )) {
-          _cacheSet(_classCache, cacheKey, g.id);
-          return g.id;
+        if ((g.manualBarcodes||[]).some(b=>b===bc||b===nm))
+          { _cacheSet(_classCache, cacheKey, g.id); return g.id; }
+      }
+      // 1. Manual name overrides
+      for (const g of cfg) {
+        if ((g.manualItems||[]).some(it=>{
+          const ni=normStr(it).toLowerCase();
+          return ni===nm||(bc&&ni===bc.toLowerCase());
+        })) { _cacheSet(_classCache, cacheKey, g.id); return g.id; }
+      }
+      // 2. Keyword auto-match
+      for (const g of cfg.filter(g=>g.matchType!=='fallback')) {
+        if (bc&&(g.excludedBarcodes||[]).includes(bc)) continue;
+        if (nm&&(g.excludedBarcodes||[]).includes(nm)) continue;
+        for (const kw of (g.keywords||[])) {
+          const hit = g.matchType==='fuzzy'
+            ? fuzzyContains(text,kw,g.fuzzyThresh||0.9)
+            : text.includes(normStr(kw).toLowerCase());
+          if (hit) { _cacheSet(_classCache, cacheKey, g.id); return g.id; }
         }
       }
-
-      // 2. Auto-match (skip fallback)
-      for (const g of cfg.filter(g => g.matchType !== 'fallback')) {
-        for (const kw of g.keywords) {
-          if (g.matchType === 'fuzzy') {
-            if (fuzzyContains(text, kw, g.fuzzyThresh || 0.9)) {
-              _cacheSet(_classCache, cacheKey, g.id);
-              return g.id;
-            }
-          } else {
-            if (normStr(text).toLowerCase().includes(normStr(kw).toLowerCase())) {
-              _cacheSet(_classCache, cacheKey, g.id);
-              return g.id;
-            }
-          }
-        }
-      }
-
-      // 3. Fallback group
-      const fallback = cfg.find(g => g.matchType === 'fallback');
-      const result = fallback ? fallback.id : 'g_bartaman';
-      _cacheSet(_classCache, cacheKey, result);
-      return result;
+      // 3. Fallback
+      const fb=cfg.find(g=>g.matchType==='fallback');
+      const res=fb?fb.id:'g_bartaman';
+      _cacheSet(_classCache,cacheKey,res); return res;
     }
 
     // Alias for cached classification
@@ -5815,14 +7008,7 @@
       else if (tab === 'mgmt') renderGrpMgmtList();
     }
 
-    /* ── STATS TAB ── */
-    function renderGrpStats() {
-      const stats = getGroupStats();
-      renderGrpCards(stats);
-      renderGrpDetailTable(stats);
-      renderGrpReturnRateChart(stats);
-      renderGrpDefectsChart(stats);
-    }
+    /* renderGrpStats — defined in v11 section below */
 
     function renderGrpCards(stats) {
       const grid = _('grp-cards-grid'); if (!grid) return;
@@ -5955,43 +7141,185 @@
       const area = _('prod-input-area'); if (!area) return;
       const cfg = S.groupConfig || buildDefaultGroupConfig();
       const monthKey = _('prod-month-sel')?.value || '';
-      if (!monthKey) { area.innerHTML = '<p style="color:var(--txt3);padding:12px">اختر شهراً</p>'; return; }
+      if (!monthKey) { area.innerHTML = '<p style="color:var(--txt3);padding:16px">اختر شهراً لعرض بيانات الإنتاج والمرتجعات</p>'; return; }
+      const [yr, mo] = monthKey.split('-');
+      const monthLabel = `${MN[+mo - 1]} ${yr}`;
+
+      // Build row data per group
+      let totalProdAll = 0, totalRetAll = 0;
+      const rows = cfg.map(g => {
+        const prod = (S.monthlyProduction[g.id] || {})[monthKey] || 0;
+        // Returns: filtered by PRODUCTION month (prodDate) — الأساس تاريخ الانتاج
+        const retRecs = S.records.filter(r => {
+          if (classifyProduct(r.product || '', r.barcode || '') !== g.id) return false;
+          const pm = r.prodDate ? r.prodDate.slice(0,7) : null;
+          const rm = r.date    ? r.date.slice(0,7)    : null;
+          return (pm || rm) === monthKey;
+        });
+        const ret = retRecs.reduce((a, r) => a + (r.qty || 1), 0);
+        const rate = prod > 0 && ret >= 0 ? (ret / prod * 100).toFixed(1) : '—';
+        const rateCls = rate === '—' ? '' : parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad';
+
+        // Top return reason
+        const reasons = {};
+        retRecs.forEach(r => { if (r.status) reasons[r.status] = (reasons[r.status]||0)+(r.qty||1); });
+        const topReason = Object.entries(reasons).sort((a,b)=>b[1]-a[1])[0];
+
+        // IPC production for this month/group
+        let ipcProd = 0;
+        if (S.production?.halls) {
+          Object.values(S.production.halls).forEach(h => {
+            (h?.records||[]).filter(r => {
+              const rGid = classifyProduct(r.product||'',r.barcode||'');
+              const m = (r.prodDate||r.opDate||'').slice(0,7);
+              return rGid === g.id && m === monthKey;
+            }).forEach(r => { ipcProd += (r.actualProd||0); });
+          });
+        }
+
+        totalProdAll += prod;
+        totalRetAll  += ret;
+        return { g, prod, ret, rate, rateCls, topReason, ipcProd, reasons };
+      });
+
+      const totalRate = totalProdAll > 0 ? (totalRetAll/totalProdAll*100).toFixed(1) : '—';
+      const totalRateCls = totalRate==='—' ? '' : parseFloat(totalRate)<3?'rate-good':parseFloat(totalRate)<8?'rate-warn':'rate-bad';
+
+      // ── Monthly breakdown per GROUP (last 6 months) ──
+      const allMonths = new Set();
+      cfg.forEach(g => Object.keys(S.monthlyProduction[g.id]||{}).forEach(m=>allMonths.add(m)));
+      S.records.forEach(r => { const m = r.prodDate?r.prodDate.slice(0,7):r.date?.slice(0,7); if(m) allMonths.add(m); });
+      const last6 = [...allMonths].sort().slice(-6);
 
       area.innerHTML = `
-  <div class="tw" style="margin-top:10px"><table class="grp-prod-table">
-    <thead><tr>
-      <th style="text-align:right">المجموعة</th>
-      <th>الإنتاج (وحدة)</th>
-      <th>المرتجع في ${MN[+monthKey.split('-')[1] - 1]}</th>
-      <th>نسبة المرتجع</th>
-    </tr></thead>
-    <tbody>
-    ${cfg.map(g => {
-        const prod = (S.monthlyProduction[g.id] || {})[monthKey] || '';
-        const ret = S.records.filter(r =>
-          r.date?.startsWith(monthKey) && classifyProduct(r.product || '', r.barcode || '') === g.id
-        ).reduce((a, r) => a + (r.qty || 1), 0);
-        const rate = prod && prod > 0 ? ((ret / prod) * 100).toFixed(1) : '—';
-        const rateCls = rate === '—' ? '' : parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad';
-        return `<tr>
-        <td>
-          <span style="display:inline-flex;align-items:center;gap:6px">
-            <span style="width:9px;height:9px;border-radius:50%;background:${g.color};display:inline-block;flex-shrink:0"></span>
-            ${g.icon} ${g.name}
-          </span>
-        </td>
-        <td>
-          <input class="prod-inp" type="number" min="0" step="1"
-            id="pi_${g.id}" value="${prod}"
-            placeholder="0"
-            onchange="updateProdVal('${g.id}','${monthKey}',this.value)">
-        </td>
-        <td style="color:var(--red);font-weight:700">${ret.toLocaleString('ar-EG')}</td>
-        <td><span class="rate-chip ${rateCls}">${rate}${rate !== '—' ? '%' : ''}</span></td>
-      </tr>`;
-      }).join('')}
-    </tbody>
-  </table></div>`;
+      <!-- ── Current month summary ── -->
+      <div style="margin-bottom:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--r2);border-right:3px solid var(--gold)">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px">📅 ${monthLabel} — بيانات الإنتاج والمرتجعات</div>
+        <div class="tw"><table class="grp-prod-table" style="width:100%">
+          <thead><tr style="background:var(--bg4)">
+            <th style="text-align:right;padding:7px 8px">المجموعة</th>
+            <th style="text-align:center;padding:7px 6px">إنتاج IPC<br><span style="font-size:8px;font-weight:400;color:var(--txt3)">تلقائي</span></th>
+            <th style="text-align:center;padding:7px 6px">الإنتاج المحفوظ</th>
+            <th style="text-align:center;padding:7px 6px;color:var(--red2)">المرتجعات</th>
+            <th style="text-align:center;padding:7px 6px">نسبة المرتجع</th>
+            <th style="text-align:right;padding:7px 6px">أبرز سبب</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(({g, prod, ret, rate, rateCls, topReason, ipcProd}) => `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:6px 8px">
+                <span style="display:inline-flex;align-items:center;gap:6px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${g.color};flex-shrink:0;display:inline-block"></span>
+                  ${g.icon} ${g.name}
+                </span>
+              </td>
+              <td style="text-align:center;padding:6px;color:var(--cyan);font-size:10.5px">${ipcProd>0?ipcProd.toLocaleString('ar-EG'):'—'}</td>
+              <td style="text-align:center;padding:6px">
+                <input class="prod-inp" type="number" min="0" step="1"
+                  id="pi_${g.id}" value="${prod||''}"
+                  placeholder="${ipcProd>0?ipcProd:0}"
+                  onchange="updateProdVal('${g.id}','${monthKey}',this.value)"
+                  style="width:90px">
+              </td>
+              <td style="text-align:center;padding:6px;font-weight:700;color:${ret>0?'var(--red)':'var(--txt4)'}">${ret>0?ret.toLocaleString('ar-EG'):'—'}</td>
+              <td style="text-align:center;padding:6px"><span class="rate-chip ${rateCls}">${rate!=='—'?rate+'%':'—'}</span></td>
+              <td style="text-align:right;padding:6px;font-size:9.5px;color:var(--txt3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                ${topReason ? `<span style="color:var(--amber)">⚠️</span> ${topReason[0].slice(0,30)} <b style="color:var(--red)">(${topReason[1]})</b>` : '—'}
+              </td>
+            </tr>`).join('')}
+            <!-- Totals row -->
+            <tr style="background:var(--bg4);font-weight:900;border-top:2px solid var(--border2)">
+              <td style="padding:7px 8px;color:var(--gold)">📊 الإجمالي</td>
+              <td style="text-align:center;padding:7px;color:var(--cyan)">
+                ${(() => {
+                  let t=0;
+                  if(S.production?.halls) Object.values(S.production.halls).forEach(h=>{
+                    (h?.records||[]).filter(r=>(r.prodDate||r.opDate||'').startsWith(monthKey)).forEach(r=>t+=(r.actualProd||0));
+                  });
+                  return t>0?t.toLocaleString('ar-EG'):'—';
+                })()}
+              </td>
+              <td style="text-align:center;padding:7px;color:var(--gold)">${totalProdAll>0?totalProdAll.toLocaleString('ar-EG'):'—'}</td>
+              <td style="text-align:center;padding:7px;color:var(--red);font-size:13px">${totalRetAll>0?totalRetAll.toLocaleString('ar-EG'):'—'}</td>
+              <td style="text-align:center;padding:7px"><span class="rate-chip ${totalRateCls}">${totalRate!=='—'?totalRate+'%':'—'}</span></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table></div>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-gold" style="font-size:11px;padding:5px 14px" onclick="saveProdData()">💾 حفظ بيانات الإنتاج</button>
+          <div style="font-size:10px;color:var(--txt3);align-self:center">💡 يمكنك تعديل الإنتاج يدوياً أو الاعتماد على قيمة IPC التلقائية</div>
+        </div>
+      </div>
+
+      <!-- ── Monthly trend (last 6 months) ── -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;padding:0 2px">📈 الاتجاه الشهري — آخر ${last6.length} أشهر</div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px;min-width:600px">
+          <thead>
+            <tr style="background:var(--bg4);color:var(--txt2)">
+              <th style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border)">المجموعة</th>
+              ${last6.map(m=>{const [y,mo]=m.split('-');return `<th style="padding:6px;text-align:center;border-bottom:1px solid var(--border);min-width:90px">${MN_SHORT[+mo-1]} ${y.slice(2)}</th>`;}).join('')}
+              <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border);color:var(--gold)">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cfg.map(g => {
+              const cells = last6.map(m => {
+                const p = (S.monthlyProduction[g.id]||{})[m] || 0;
+                const retR = S.records.filter(r => {
+                  if (classifyProduct(r.product||'',r.barcode||'') !== g.id) return false;
+                  const pm = r.prodDate?r.prodDate.slice(0,7):r.date?.slice(0,7);
+                  return pm === m;
+                }).reduce((a,r)=>a+(r.qty||1),0);
+                const rt = p>0 ? (retR/p*100).toFixed(1) : '—';
+                const rc = rt==='—'?'var(--txt4)':parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)';
+                const isActive = m === monthKey;
+                return { p, retR, rt, rc, isActive };
+              });
+              const rowTotProd = cells.reduce((a,c)=>a+c.p,0);
+              const rowTotRet  = cells.reduce((a,c)=>a+c.retR,0);
+              const rowRate    = rowTotProd>0?(rowTotRet/rowTotProd*100).toFixed(1):'—';
+              return `<tr style="border-bottom:1px solid var(--border);${cells.some(c=>c.isActive)?'background:var(--gdim2)':''}">
+                <td style="padding:5px 8px;font-weight:600">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${g.color};display:inline-block;margin-left:4px"></span>
+                  ${g.icon} ${g.name}
+                </td>
+                ${cells.map(c=>`<td style="padding:5px 6px;text-align:center;${c.isActive?'background:var(--gdim);border-radius:4px':''}">
+                  <div style="font-weight:700;color:var(--cyan);font-size:10px">${c.p>0?c.p.toLocaleString('ar-EG'):'—'}</div>
+                  ${c.retR>0?`<div style="color:var(--red);font-size:9px">${c.retR} مرتجع</div><div style="color:${c.rc};font-size:9px;font-weight:700">${c.rt}%</div>`:'<div style="color:var(--txt4);font-size:9px">—</div>'}
+                </td>`).join('')}
+                <td style="padding:5px 6px;text-align:center;background:var(--bg4)">
+                  <div style="font-weight:900;color:var(--gold)">${rowTotProd>0?rowTotProd.toLocaleString('ar-EG'):'—'}</div>
+                  ${rowTotRet>0?`<div style="color:var(--red);font-size:9px">${rowTotRet}</div><div style="font-size:9px;font-weight:700;color:${rowRate==='—'?'var(--txt3)':parseFloat(rowRate)<3?'var(--em)':parseFloat(rowRate)<8?'var(--amber)':'var(--red)'}">${rowRate!=='—'?rowRate+'%':'—'}</div>`:'<div style="color:var(--txt4);font-size:9px">—</div>'}
+                </td>
+              </tr>`;
+            }).join('')}
+            <!-- Grand total row -->
+            ${(() => {
+              const totCells = last6.map(m => {
+                const p = cfg.reduce((a,g)=>a+((S.monthlyProduction[g.id]||{})[m]||0),0);
+                const retR = S.records.filter(r=>{const pm=r.prodDate?r.prodDate.slice(0,7):r.date?.slice(0,7);return pm===m;}).reduce((a,r)=>a+(r.qty||1),0);
+                const rt = p>0?(retR/p*100).toFixed(1):'—';
+                return {p,retR,rt};
+              });
+              const gTotP = totCells.reduce((a,c)=>a+c.p,0);
+              const gTotR = totCells.reduce((a,c)=>a+c.retR,0);
+              const gRate = gTotP>0?(gTotR/gTotP*100).toFixed(1):'—';
+              return `<tr style="background:var(--bg4);font-weight:900;border-top:2px solid var(--border2)">
+                <td style="padding:6px 8px;color:var(--gold)">📊 الإجمالي الكلي</td>
+                ${totCells.map(c=>`<td style="padding:5px 6px;text-align:center">
+                  <div style="color:var(--gold);font-weight:900">${c.p>0?c.p.toLocaleString('ar-EG'):'—'}</div>
+                  ${c.retR>0?`<div style="color:var(--red);font-size:9px">${c.retR}</div><div style="color:var(--red2);font-size:9px">${c.rt}%</div>`:'<div style="color:var(--txt4);font-size:9px">—</div>'}
+                </td>`).join('')}
+                <td style="padding:6px;text-align:center;background:var(--bg5)">
+                  <div style="color:var(--gold);font-size:13px;font-weight:900">${gTotP>0?gTotP.toLocaleString('ar-EG'):'—'}</div>
+                  ${gTotR>0?`<div style="color:var(--red)">${gTotR}</div><div style="color:var(--red2);font-weight:700">${gRate}%</div>`:''}
+                </td>
+              </tr>`;
+            })()}
+          </tbody>
+        </table></div>
+      </div>`;
 
       renderProdVsReturnChart();
     }
@@ -6001,6 +7329,7 @@
       const v = parseFloat(val) || 0;
       if (v > 0) S.monthlyProduction[gid][month] = v;
       else delete S.monthlyProduction[gid][month];
+      save(true);
       // live update rate column
       const inp = _(`pi_${gid}`);
       if (inp) {
@@ -6018,22 +7347,27 @@
     }
 
     function saveProdData() {
-      // Read all inputs
       const cfg = S.groupConfig || buildDefaultGroupConfig();
       const monthKey = _('prod-month-sel')?.value || '';
       if (!monthKey) { toast('اختر شهراً أولاً', 'warn'); return; }
+      let saved = 0;
       cfg.forEach(g => {
         const inp = _(`pi_${g.id}`);
-        if (inp) {
-          const v = parseFloat(inp.value) || 0;
-          if (!S.monthlyProduction[g.id]) S.monthlyProduction[g.id] = {};
-          if (v > 0) S.monthlyProduction[g.id][monthKey] = v;
-          else delete S.monthlyProduction[g.id][monthKey];
-        }
+        if (!inp) return;
+        const raw = inp.value.trim();
+        if (raw === '') return;
+        const v = parseFloat(raw);
+        if (isNaN(v) || v < 0) return;
+        if (!S.monthlyProduction[g.id]) S.monthlyProduction[g.id] = {};
+        if (v > 0) S.monthlyProduction[g.id][monthKey] = v;
+        else delete S.monthlyProduction[g.id][monthKey];
+        saved++;
       });
+      if (saved === 0) { toast('لم يتم إدخال أي قيمة', 'warn'); return; }
       save();
       renderProdVsReturnChart();
-      toast('تم حفظ بيانات الإنتاج ✓');
+      renderProdInputTable(); // refresh to show updated rates
+      toast(`✅ تم حفظ بيانات الإنتاج لـ ${MN[+monthKey.split('-')[1]-1]} ${monthKey.split('-')[0]}`);
     }
 
     function renderProdVsReturnChart() {
@@ -6130,18 +7464,65 @@
       const cfg = S.groupConfig || buildDefaultGroupConfig();
       const g = cfg.find(x => x.id === gid); if (!g) return;
 
-      // Get auto-classified items from records
-      const autoItems = [...new Set(
-        S.records
-          .filter(r => classifyProduct(r.product || '', r.barcode || '') === gid)
-          .map(r => r.product || r.barcode || '')
-          .filter(Boolean)
-      )].sort();
+      // ── Build stats for AUTO-classified items (from returns) ──
+      const itemStats = {};
+      S.records.filter(r => classifyProduct(r.product||'',r.barcode||'') === gid).forEach(r => {
+        const key = r.product || r.barcode || ''; if (!key) return;
+        if (!itemStats[key]) itemStats[key] = { total: 0, reasons: {}, prodMonths: new Set(), source: 'auto' };
+        itemStats[key].total += (r.qty||1);
+        if (r.status) itemStats[key].reasons[r.status] = (itemStats[key].reasons[r.status]||0)+(r.qty||1);
+        const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
+        if (pm) itemStats[key].prodMonths.add(pm);
+      });
+
+      // ── Also include IPC production records for this group ──
+      const ipcProdByItem = {};
+      if (S.production?.halls) {
+        Object.values(S.production.halls).forEach(h => {
+          (h?.records || []).forEach(r => {
+            // Check if this IPC item belongs to our group
+            const rGid = classifyProduct(r.product||'', r.barcode||'');
+            if (rGid !== gid) return;
+            const key = r.product || r.barcode || ''; if (!key) return;
+            if (!ipcProdByItem[key]) ipcProdByItem[key] = { totalProd: 0, months: new Set() };
+            ipcProdByItem[key].totalProd += (r.actualProd || 0);
+            const m = (r.prodDate || r.opDate || '').slice(0,7);
+            if (m) ipcProdByItem[key].months.add(m);
+          });
+        });
+      }
+
+      // ── MANUAL items: show even if no returns ──
+      g.manualItems.forEach(item => {
+        if (!itemStats[item]) {
+          itemStats[item] = { total: 0, reasons: {}, prodMonths: new Set(), source: 'manual' };
+        } else {
+          itemStats[item].source = 'manual';
+        }
+        // Add production months from IPC
+        (ipcProdByItem[item]?.months || new Set()).forEach(m => itemStats[item].prodMonths.add(m));
+      });
+
+      // Attach ipc production data to all items
+      Object.keys(ipcProdByItem).forEach(item => {
+        if (!itemStats[item]) itemStats[item] = { total: 0, reasons: {}, prodMonths: new Set(), source: 'auto' };
+        itemStats[item].ipcProd = ipcProdByItem[item].totalProd;
+        ipcProdByItem[item].months.forEach(m => itemStats[item].prodMonths.add(m));
+      });
+
+      const autoItems = Object.entries(itemStats)
+        .sort((a,b) => (b[1].total||0) - (a[1].total||0))
+        .map(([k]) => k);
+
+      const totalRet = Object.values(itemStats).reduce((a,v)=>a+v.total,0);
+      const totalIPCProd = Object.values(ipcProdByItem).reduce((a,v)=>a+v.totalProd,0);
+      const spProd = getSpProd(gid);
 
       _('gid-title').textContent = `${g.icon} أصناف مجموعة: ${g.name}`;
-      _('gid-sub').textContent = `${autoItems.length} صنف تلقائي + ${g.manualItems.length} صنف يدوي`;
+      _('gid-sub').textContent = `${autoItems.length} صنف · مرتجع: ${totalRet.toLocaleString('ar-EG')} · إنتاج IPC: ${totalIPCProd > 0 ? totalIPCProd.toLocaleString('ar-EG') : '—'} · إنتاج محفوظ: ${spProd > 0 ? spProd.toLocaleString('ar-EG') : '—'}`;
       _('gid-search').value = '';
 
+      window._gidItemStats = itemStats;
       renderGidItems(autoItems, g.manualItems);
       openMod('grpItemsDetailMod');
     }
@@ -6150,40 +7531,114 @@
       const cfg = S.groupConfig || buildDefaultGroupConfig();
       const g = cfg.find(x => x.id === gidCurrentGroupId);
       const q = (_('gid-search')?.value || '').toLowerCase();
-      const filteredAuto = q ? autoItems.filter(i => i.toLowerCase().includes(q)) : autoItems;
+      const filteredAuto   = q ? autoItems.filter(i => i.toLowerCase().includes(q)) : autoItems;
       const filteredManual = q ? manualItems.filter(i => i.toLowerCase().includes(q)) : manualItems;
 
       _('gid-cnt').textContent = `${filteredAuto.length + filteredManual.length} صنف`;
 
       const autoEl = _('gid-auto-items');
       if (autoEl) {
-        if (!filteredAuto.length) autoEl.innerHTML = '<span style="font-size:11px;color:var(--txt4);padding:8px">لا توجد أصناف مُصنَّفة تلقائياً</span>';
-        else autoEl.innerHTML = filteredAuto.map(item => `
-      <div class="grp-item-card">
-        <span title="${item}">${item.length > 22 ? item.slice(0, 20) + '..' : item}</span>
-        <button class="ic-move" title="نقل لمجموعة أخرى" onclick="openMoveItem('${gidCurrentGroupId}','${item.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">↔</button>
-      </div>`).join('');
+        if (!filteredAuto.length) {
+          autoEl.innerHTML = '<span style="font-size:11px;color:var(--txt4);padding:8px">لا توجد أصناف في هذه المجموعة</span>';
+        } else {
+          autoEl.innerHTML = `
+          <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+            <thead>
+              <tr style="background:var(--bg4);color:var(--txt2)">
+                <th style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border)">الصنف</th>
+                <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">المصدر</th>
+                <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">كمية المرتجع</th>
+                <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">إنتاج IPC</th>
+                <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">نسبة المرتجع</th>
+                <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">شهور الإنتاج</th>
+                <th style="padding:6px;text-align:center;border-bottom:1px solid var(--border)">إجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredAuto.map(item => {
+                const st = window._gidItemStats?.[item] || {};
+                const isManual = st.source === 'manual' || (g?.manualItems||[]).includes(item);
+                const ret    = st.total || 0;
+                const ipcP   = st.ipcProd || 0;
+                const retRate = ipcP > 0 && ret > 0 ? (ret/ipcP*100).toFixed(1) : '—';
+                const rateClr = retRate==='—' ? 'var(--txt3)' : parseFloat(retRate)<3?'var(--em)':parseFloat(retRate)<8?'var(--amber)':'var(--red)';
+                const pms = st.prodMonths ? [...st.prodMonths].sort().slice(-3).map(m=>{const [y,mo]=m.split('-');return MN_SHORT[+mo-1]+y.slice(2);}).join(' · ') : '';
+                const topR = Object.entries(st.reasons||{}).sort((a,b)=>b[1]-a[1])[0];
+                const safeItem = item.replace(/'/g,"\'").replace(/"/g,'&quot;');
+                return `<tr style="border-bottom:1px solid var(--border);transition:background .12s" onmouseenter="this.style.background='var(--bg4)'" onmouseleave="this.style.background=''">
+                  <td style="padding:6px 8px;font-weight:600;max-width:200px">
+                    <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item}">${item.length>34?item.slice(0,32)+'..':item}</div>
+                    ${topR ? `<div style="font-size:9px;color:var(--txt3);margin-top:1px">⚠️ ${topR[0].slice(0,28)}: ${topR[1]}</div>` : ''}
+                  </td>
+                  <td style="padding:6px;text-align:center">
+                    <span style="font-size:9px;padding:1px 6px;border-radius:10px;background:${isManual?'rgba(139,92,246,.15)':'rgba(34,211,238,.1)'};color:${isManual?'var(--violet)':'var(--cyan)'}">
+                      ${isManual ? '✏️ يدوي' : '🤖 تلقائي'}
+                    </span>
+                  </td>
+                  <td style="padding:6px;text-align:center;font-weight:700;color:${ret>0?'var(--red)':'var(--txt4)'}">${ret>0?ret.toLocaleString('ar-EG'):'—'}</td>
+                  <td style="padding:6px;text-align:center;font-weight:700;color:${ipcP>0?'var(--cyan)':'var(--txt4)'}">${ipcP>0?ipcP.toLocaleString('ar-EG'):'—'}</td>
+                  <td style="padding:6px;text-align:center;font-weight:800;color:${rateClr}">${retRate !== '—' ? retRate+'%' : '—'}</td>
+                  <td style="padding:6px;text-align:center;font-size:9px;color:var(--blue2)">${pms||'—'}</td>
+                  <td style="padding:6px;text-align:center">
+                    <button class="ic-move" title="نقل لمجموعة أخرى" onclick="openMoveItem('${gidCurrentGroupId}','${safeItem}')">↔</button>
+                    ${isManual ? `<button class="ic-del" title="حذف من اليدوي" onclick="removeItemFromGroupAndRefresh('${gidCurrentGroupId}','${safeItem}')" style="margin-right:4px">✕</button>` : ''}
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`;
+        }
       }
 
+      // Manual items still shown below if not already in auto list
       const manEl = _('gid-manual-items');
       if (manEl) {
-        if (!filteredManual.length) manEl.innerHTML = '<span style="font-size:11px;color:var(--txt4);padding:8px">لا توجد أصناف يدوية</span>';
-        else manEl.innerHTML = filteredManual.map(item => `
-      <div class="grp-item-card">
-        <span title="${item}">${item.length > 22 ? item.slice(0, 20) + '..' : item}</span>
-        <button class="ic-move" title="نقل لمجموعة أخرى" onclick="openMoveItem('${gidCurrentGroupId}','${item.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">↔</button>
-        <button class="ic-del" title="حذف" onclick="removeItemFromGroupAndRefresh('${gidCurrentGroupId}','${item.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">✕</button>
-      </div>`).join('');
+        const manOnlyItems = filteredManual.filter(i => !filteredAuto.includes(i));
+        if (!manOnlyItems.length) {
+          manEl.innerHTML = '';
+          manEl.style.display = 'none';
+        } else {
+          manEl.style.display = '';
+          manEl.innerHTML = `<div style="font-size:10px;color:var(--txt3);margin:8px 0 4px">📌 أصناف يدوية إضافية (غير موجودة في بيانات المرتجعات):</div>` +
+            manOnlyItems.map(item => `
+            <div class="grp-item-card" style="background:rgba(139,92,246,.07);border-color:rgba(139,92,246,.2)">
+              <span style="color:var(--violet)" title="${item}">${item.length > 26 ? item.slice(0, 24) + '..' : item}</span>
+              <button class="ic-move" onclick="openMoveItem('${gidCurrentGroupId}','${item.replace(/'/g,"\'").replace(/"/g,'&quot;')}')">↔</button>
+              <button class="ic-del" onclick="removeItemFromGroupAndRefresh('${gidCurrentGroupId}','${item.replace(/'/g,"\'").replace(/"/g,'&quot;')}')">✕</button>
+            </div>`).join('');
+        }
       }
     }
 
     function filterGidItems() {
       const cfg = S.groupConfig || buildDefaultGroupConfig();
       const g = cfg.find(x => x.id === gidCurrentGroupId); if (!g) return;
-      const autoItems = [...new Set(
-        S.records.filter(r => classifyProduct(r.product || '', r.barcode || '') === gidCurrentGroupId)
-          .map(r => r.product || r.barcode || '').filter(Boolean)
-      )].sort();
+      // Rebuild itemStats (same as openGroupItemsDetail)
+      const itemStats = {};
+      S.records.filter(r => classifyProduct(r.product||'',r.barcode||'') === gidCurrentGroupId).forEach(r => {
+        const key = r.product || r.barcode || ''; if (!key) return;
+        if (!itemStats[key]) itemStats[key] = { total: 0, reasons: {}, prodMonths: new Set(), source: 'auto' };
+        itemStats[key].total += (r.qty||1);
+        if (r.status) itemStats[key].reasons[r.status] = (itemStats[key].reasons[r.status]||0)+(r.qty||1);
+        const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
+        if (pm) itemStats[key].prodMonths.add(pm);
+      });
+      if (S.production?.halls) {
+        Object.values(S.production.halls).forEach(h => {
+          (h?.records||[]).filter(r=>classifyProduct(r.product||'',r.barcode||'')===gidCurrentGroupId).forEach(r => {
+            const key = r.product||r.barcode||''; if(!key) return;
+            if (!itemStats[key]) itemStats[key] = { total:0, reasons:{}, prodMonths:new Set(), source:'auto' };
+            itemStats[key].ipcProd = (itemStats[key].ipcProd||0) + (r.actualProd||0);
+            const m = (r.prodDate||r.opDate||'').slice(0,7); if(m) itemStats[key].prodMonths.add(m);
+          });
+        });
+      }
+      g.manualItems.forEach(item => {
+        if (!itemStats[item]) itemStats[item] = { total:0, reasons:{}, prodMonths:new Set(), source:'manual' };
+        else itemStats[item].source = 'manual';
+      });
+      window._gidItemStats = itemStats;
+      const autoItems = Object.keys(itemStats).sort((a,b)=>(itemStats[b].total||0)-(itemStats[a].total||0));
       renderGidItems(autoItems, g.manualItems);
     }
 
@@ -6194,15 +7649,10 @@
       const g = cfg.find(x => x.id === gidCurrentGroupId); if (!g) return;
       if (!g.manualItems.includes(val)) {
         g.manualItems.push(val);
+        _invalidateCache();
         save();
         _('gid-new-item').value = '';
-        // Refresh modal items
-        const autoItems = [...new Set(
-          S.records.filter(r => classifyProduct(r.product || '', r.barcode || '') === gidCurrentGroupId)
-            .map(r => r.product || r.barcode || '').filter(Boolean)
-        )].sort();
-        renderGidItems(autoItems, g.manualItems);
-        _('gid-sub').textContent = `${autoItems.length} صنف تلقائي + ${g.manualItems.length} صنف يدوي`;
+        openGroupItemsDetail(gidCurrentGroupId); // full refresh with stats
         toast(`تمت إضافة "${val}" إلى ${g.name} ✓`);
       } else {
         toast('الصنف موجود بالفعل في هذه المجموعة', 'warn');
@@ -6211,15 +7661,8 @@
 
     function removeItemFromGroupAndRefresh(gid, item) {
       removeItemFromGroup(gid, item);
-      // Refresh modal
-      const cfg = S.groupConfig || buildDefaultGroupConfig();
-      const g = cfg.find(x => x.id === gid); if (!g) return;
-      const autoItems = [...new Set(
-        S.records.filter(r => classifyProduct(r.product || '', r.barcode || '') === gid)
-          .map(r => r.product || r.barcode || '').filter(Boolean)
-      )].sort();
-      renderGidItems(autoItems, g.manualItems);
-      _('gid-sub').textContent = `${autoItems.length} صنف تلقائي + ${g.manualItems.length} صنف يدوي`;
+      _invalidateCache();
+      openGroupItemsDetail(gid); // full refresh with stats
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -6244,28 +7687,67 @@
       const { fromGid, item } = moveItemData;
       const cfg = S.groupConfig || buildDefaultGroupConfig();
       const from = cfg.find(x => x.id === fromGid);
-      const to = cfg.find(x => x.id === toGid);
+      const to   = cfg.find(x => x.id === toGid);
       if (!from || !to) return;
-      // Remove from source (manual items)
+
+      // ── 1. Update group config ──
       from.manualItems = from.manualItems.filter(i => i !== item);
-      // Add to target manual items if not already there
       if (!to.manualItems.includes(item)) to.manualItems.push(item);
       S.groupConfig = cfg;
+
+      // ── 2. Transfer returns quantity from source monthlyProduction to target ──
+      // Find all months where this item has returns
+      const itemRetByMonth = {};
+      S.records.forEach(r => {
+        const rName = r.product || r.barcode || '';
+        if (rName !== item) return;
+        const m = r.date ? r.date.slice(0,7) : null;
+        if (m) itemRetByMonth[m] = (itemRetByMonth[m] || 0) + (r.qty || 1);
+      });
+
+      // ── 3. Recalculate monthlyProduction for both groups after move ──
+      // We rebuild from IPC records so production follows the product
+      if (S.production?.halls) {
+        const allIPCRecs = [];
+        Object.values(S.production.halls).forEach(h => {
+          if (h?.records) allIPCRecs.push(...h.records);
+        });
+        // Find IPC runs for this item
+        const itemIPCRecs = allIPCRecs.filter(r =>
+          (r.product || r.barcode || '') === item ||
+          String(r.barcode||'').trim() === String(item).trim()
+        );
+        // These runs should now count toward 'to' group
+        itemIPCRecs.forEach(r => {
+          const m = (r.prodDate || r.opDate || '').slice(0,7);
+          if (!m) return;
+          const qty = r.actualProd || 0;
+          // Subtract from source group
+          if (S.monthlyProduction[fromGid]?.[m]) {
+            S.monthlyProduction[fromGid][m] = Math.max(0, (S.monthlyProduction[fromGid][m] || 0) - qty);
+            if (S.monthlyProduction[fromGid][m] === 0) delete S.monthlyProduction[fromGid][m];
+          }
+          // Add to target group
+          if (!S.monthlyProduction[toGid]) S.monthlyProduction[toGid] = {};
+          S.monthlyProduction[toGid][m] = (S.monthlyProduction[toGid][m] || 0) + qty;
+        });
+      }
+
+      // ── 4. Invalidate classification cache so records re-classify ──
+      _invalidateCache();
+
       save();
       closeMod('moveItemMod');
-      // Refresh gid modal if open
+
+      // ── 5. Refresh UI ──
       if (gidCurrentGroupId === fromGid || gidCurrentGroupId === toGid) {
-        const g = cfg.find(x => x.id === gidCurrentGroupId);
-        if (g) {
-          const autoItems = [...new Set(
-            S.records.filter(r => classifyProduct(r.product || '', r.barcode || '') === gidCurrentGroupId)
-              .map(r => r.product || r.barcode || '').filter(Boolean)
-          )].sort();
-          renderGidItems(autoItems, g.manualItems);
-        }
+        openGroupItemsDetail(gidCurrentGroupId);
       }
       renderGrpMgmtList();
-      toast(`تم نقل "${item}" إلى ${to.name} ✓`);
+
+      // Summary of what moved
+      const totalRetMoved = Object.values(itemRetByMonth).reduce((a,v)=>a+v,0);
+      toast(`✅ تم نقل "${item}" إلى ${to.name}` + (totalRetMoved > 0 ? ` · ${totalRetMoved} مرتجع انتقل معه` : ''));
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -6530,93 +8012,124 @@
     let prodNotifyMonths = [];
     let prodNotifyCurrentMonth = '';
 
-    function showProdNotifyModal(newMonths) {
-      if (!newMonths || !newMonths.length) return;
-      prodNotifyMonths = [...new Set(newMonths)].sort();
-      prodNotifyCurrentMonth = prodNotifyMonths[0];
+    function showProdNotifyModal(newMonths) { showMissingProdModal(getMissingProdMonths()); }
 
-      // Chips
-      const chips = _('pn-months-chips');
-      if (chips) chips.innerHTML = prodNotifyMonths.map(m => {
-        const [y, mo] = m.split('-');
-        return `<span class="prod-notify-badge">📅 ${MN[+mo - 1]} ${y}</span>`;
-      }).join('');
+    /* ─── Smart Missing Production Modal ─── */
+    function showMissingProdModal(missingList) {
+      if (!missingList || !missingList.length) return;
 
-      // Month tabs
-      const tabs = _('pn-month-tabs');
-      if (tabs) tabs.innerHTML = prodNotifyMonths.map(m => {
-        const [y, mo] = m.split('-');
-        return `<button class="abt ${m === prodNotifyCurrentMonth ? 'on' : ''}" onclick="setPnMonth('${m}',this)">${MN_SHORT[+mo - 1]} ${y}</button>`;
-      }).join('');
+      const byMonth = {};
+      missingList.forEach(m => {
+        if (!byMonth[m.month]) byMonth[m.month] = [];
+        byMonth[m.month].push(m);
+      });
+      const months = Object.keys(byMonth).sort();
 
-      renderPnInputArea();
-      openMod('prodNotifyMod');
-      toast(`📊 تم إضافة بيانات لـ ${prodNotifyMonths.length} شهر — أدخل كميات الإنتاج`, 'warn');
+      document.getElementById('missingProdMod')?.remove();
+      const mod = document.createElement('div');
+      mod.className = 'mbg'; mod.id = 'missingProdMod'; mod.style.display = 'flex';
+
+      // Build tabs HTML
+      let tabsHtml = '';
+      months.forEach((m, i) => {
+        const parts = m.split('-'), y = parts[0], mo = parts[1];
+        const grpCnt = byMonth[m].length;
+        const totalRet = byMonth[m].reduce(function(a,v){return a+v.returnQty;}, 0);
+        const onCls = i === 0 ? 'on' : '';
+        tabsHtml += '<button class="abt ' + onCls + '" onclick="switchMpmTab(\'' + m + '\',this)" style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px">' +
+          '<span style="font-weight:700">' + MN_SHORT[+mo-1] + ' ' + y + '</span>' +
+          '<span style="font-size:9px;opacity:.7">' + grpCnt + ' قسم · ' + totalRet + ' مرتجع</span>' +
+          '</button>';
+      });
+
+      // Build panels HTML
+      let panelsHtml = '';
+      months.forEach(function(m, i) {
+        const parts = m.split('-'), y = parts[0], mo = parts[1];
+        let rowsHtml = '';
+        byMonth[m].forEach(function(item) {
+          const existVal = (S.monthlyProduction[item.gid] || {})[m] || '';
+          rowsHtml += '<div class="prod-month-inp-row">' +
+            '<div class="pmir-name" style="display:flex;align-items:center;gap:7px">' +
+            '<span style="width:9px;height:9px;border-radius:50%;background:' + item.gcolor + ';display:inline-block;flex-shrink:0"></span>' +
+            item.gicon + ' ' + item.gname + '</div>' +
+            '<input class="pmir-inp" id="mpm_' + item.gid + '_' + m + '" type="number" min="0" step="1"' +
+            ' placeholder="أدخل كمية الإنتاج" value="' + existVal + '"' +
+            ' oninput="liveCalcMpmRate(\'' + item.gid + '\',\'' + m + '\',this.value)">' +
+            '<div class="pmir-ret">🔴 مرتجع (' + MN_SHORT[+mo-1] + ' ' + y + '): <strong style="color:var(--red)">' + item.returnQty.toLocaleString('ar-EG') + '</strong> وحدة</div>' +
+            '<div class="pmir-rate" id="mpmrate_' + item.gid + '_' + m + '"><span style="color:var(--txt4);font-size:10px">—</span></div>' +
+            '</div>';
+        });
+        panelsHtml += '<div id="mpm-panel-' + m + '" style="display:' + (i===0?'':'none') + '">' +
+          '<div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:10px">📅 شهر الإنتاج: ' + MN[+mo-1] + ' ' + y + '</div>' +
+          rowsHtml + '</div>';
+      });
+
+      const saveMonthsJson = JSON.stringify(months);
+      mod.innerHTML =
+        '<div class="modal" style="max-width:720px;max-height:90vh">' +
+        '<div class="modal-head" style="background:linear-gradient(135deg,rgba(245,183,49,.1),transparent)">' +
+        '<div><h3 style="color:var(--gold)">⚠️ شهور إنتاج بدون كميات</h3>' +
+        '<div style="font-size:11px;color:var(--txt2);margin-top:3px">مرتجعات بتواريخ إنتاج بدون كميات إنتاج — أدخلها لحساب النسب</div></div>' +
+        '<button class="modal-close" onclick="document.getElementById(&apos;missingProdMod&apos;).remove()">✕</button></div>' +
+        '<div class="modal-body" style="overflow-y:auto;max-height:65vh">' +
+        '<div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:var(--txt2);line-height:1.8">' +
+        '📌 <strong style="color:var(--cyan)">المنطق:</strong> نسبة المرتجع = مرتجعات شهر إنتاج X ÷ إجمالي إنتاج شهر X<br>' +
+        'تاريخ الإنتاج مأخوذ من حقل "تاريخ الإنتاج" في ملف المرتجعات (ليس تاريخ الاستلام)</div>' +
+        '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px" id="mpm-tabs">' + tabsHtml + '</div>' +
+        panelsHtml + '</div>' +
+        '<div class="modal-foot">' +
+        '<button class="btn btn-ghost" onclick="document.getElementById(&apos;missingProdMod&apos;).remove()">تأجيل</button>' +
+        '<button class="btn btn-gold" onclick="saveMissingProdData(' + saveMonthsJson + ')">💾 حفظ جميع الكميات</button>' +
+        '</div></div>';
+
+      document.body.appendChild(mod);
+      window._mpmMissing = missingList;
     }
 
-    function setPnMonth(m, btn) {
-      prodNotifyCurrentMonth = m;
-      document.querySelectorAll('#pn-month-tabs .abt').forEach(b => b.classList.remove('on'));
+        function switchMpmTab(month, btn) {
+      document.querySelectorAll('#mpm-tabs .abt').forEach(b => b.classList.remove('on'));
       if (btn) btn.classList.add('on');
-      renderPnInputArea();
+      // Get all months from panels
+      document.querySelectorAll('[id^="mpm-panel-"]').forEach(p => p.style.display = 'none');
+      const panel = document.getElementById(`mpm-panel-${month}`);
+      if (panel) panel.style.display = '';
     }
 
-    function renderPnInputArea() {
-      const area = _('pn-input-area'); if (!area) return;
-      const cfg = S.groupConfig || buildDefaultGroupConfig();
-      const m = prodNotifyCurrentMonth;
-      const [y, mo] = m.split('-');
-      area.innerHTML = `
-    <div style="font-size:11px;color:var(--txt3);margin-bottom:10px;padding:8px 12px;background:var(--bg3);border-radius:var(--r2)">
-      أدخل كمية الإنتاج لكل مجموعة خلال شهر <strong style="color:var(--gold)">${MN[+mo - 1]} ${y}</strong>
-    </div>
-    ${cfg.map(g => {
-        const ret = S.records.filter(r => r.date?.startsWith(m) && classifyProduct(r.product || '', r.barcode || '') === g.id).reduce((a, r) => a + (r.qty || 1), 0);
-        const existingProd = (S.monthlyProduction[g.id] || {})[m] || '';
-        const rate = existingProd && existingProd > 0 ? ((ret / existingProd) * 100).toFixed(1) : '';
-        const rateCls = rate ? parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad' : '';
-        return `<div class="prod-month-inp-row">
-        <div style="display:flex;align-items:center;gap:7px" class="pmir-name">
-          <span style="width:9px;height:9px;border-radius:50%;background:${g.color};display:inline-block;flex-shrink:0"></span>
-          ${g.icon} ${g.name}
-        </div>
-        <input class="pmir-inp" id="pn_${g.id}" type="number" min="0" step="1" placeholder="0" value="${existingProd}"
-          oninput="updatePnRate('${g.id}','${m}',this.value)">
-        <div class="pmir-ret">🔴 مرتجع: <strong style="color:var(--red)">${ret.toLocaleString('ar-EG')}</strong></div>
-        <div class="pmir-rate" id="pnr_${g.id}">
-          ${rate ? `<span class="rate-chip ${rateCls}">${rate}%</span>` : '<span style="color:var(--txt4);font-size:10px">—</span>'}
-        </div>
-      </div>`;
-      }).join('')}`;
-    }
-
-    function updatePnRate(gid, month, val) {
+    function liveCalcMpmRate(gid, month, val) {
       const v = parseFloat(val) || 0;
-      const ret = S.records.filter(r => r.date?.startsWith(month) && classifyProduct(r.product || '', r.barcode || '') === gid).reduce((a, r) => a + (r.qty || 1), 0);
-      const rate = v > 0 ? ((ret / v) * 100).toFixed(1) : '';
-      const cls = rate ? parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad' : '';
-      const el = _(`pnr_${gid}`);
-      if (el) el.innerHTML = rate ? `<span class="rate-chip ${cls}">${rate}%</span>` : '<span style="color:var(--txt4);font-size:10px">—</span>';
+      const missing = (window._mpmMissing || []).find(m => m.gid === gid && m.month === month);
+      const ret = missing?.returnQty || 0;
+      const rate = v > 0 && ret > 0 ? ((ret/v)*100).toFixed(2) : '';
+      const cls = rate ? parseFloat(rate)<3?'rate-good':parseFloat(rate)<8?'rate-warn':'rate-bad' : '';
+      const el = document.getElementById(`mpmrate_${gid}_${month}`);
+      if (el) el.innerHTML = rate
+        ? `<span class="rate-chip ${cls}">${rate}%</span>`
+        : '<span style="color:var(--txt4);font-size:10px">—</span>';
     }
 
-    function saveProdNotifyData() {
-      const cfg = S.groupConfig || buildDefaultGroupConfig();
-      // Save all months
-      prodNotifyMonths.forEach(m => {
-        cfg.forEach(g => {
-          const inp = _(`pn_${g.id}`);
-          if (inp) {
-            const v = parseFloat(inp.value) || 0;
-            if (!S.monthlyProduction[g.id]) S.monthlyProduction[g.id] = {};
-            if (v > 0) S.monthlyProduction[g.id][m] = v;
-          }
+    function saveMissingProdData(months) {
+      let saved = 0;
+      months.forEach(m => {
+        (window._mpmMissing || []).filter(x => x.month === m).forEach(item => {
+          const inp = document.getElementById(`mpm_${item.gid}_${m}`);
+          if (!inp) return;
+          const v = parseFloat(inp.value) || 0;
+          if (!S.monthlyProduction[item.gid]) S.monthlyProduction[item.gid] = {};
+          if (v > 0) { S.monthlyProduction[item.gid][m] = v; saved++; }
         });
       });
       save();
-      closeMod('prodNotifyMod');
-      toast('تم حفظ بيانات الإنتاج لجميع الأشهر ✓');
-      if (grpCurrentTab === 'stats') renderGrpStats();
+      document.getElementById('missingProdMod')?.remove();
+      if (saved > 0) {
+        toast(`✅ تم حفظ الإنتاج لـ ${saved} قسم/شهر — النسب مُحدَّثة`);
+        if (grpCurrentTab === 'stats') renderGrpStats();
+        debounceKey('overview', rfOverview, 200);
+      } else {
+        toast('لم يتم إدخال أي كميات — يمكنك العودة لاحقاً', 'warn');
+      }
     }
+
 
     function addItemToGroup(gid) {
       const inp = _(`gadd_${gid}`); if (!inp) return;
@@ -6747,6 +8260,38 @@
       return alerts.slice(0, 8); // Limit to 8 alerts for performance
     }
 
+    // IPC helper: get total actual production for a barcode/product name across all halls
+    function getIPCProductionForBarcode(barcodeOrName) {
+      if (!S.production || !S.production.halls) return 0;
+      let total = 0;
+      Object.values(S.production.halls).forEach(hall => {
+        if (!hall || !hall.records) return;
+        hall.records.forEach(r => {
+          const bcMatch = barcodeOrName && r.barcode && String(r.barcode).trim() === String(barcodeOrName).trim();
+          const nmMatch = barcodeOrName && r.product && r.product.includes(barcodeOrName);
+          if (bcMatch || nmMatch) total += (r.actualProd || 0);
+        });
+      });
+      return total;
+    }
+
+    // IPC helper: get production data for a specific month (YYYY-MM) across all halls
+    function getIPCProductionByMonth(month) {
+      if (!S.production || !S.production.halls) return {};
+      const result = {}; // barcode → { product, group, totalProd }
+      Object.values(S.production.halls).forEach(hall => {
+        if (!hall || !hall.records) return;
+        hall.records.forEach(r => {
+          const recMonth = (r.prodDate || r.opDate || '').slice(0, 7);
+          if (month && recMonth !== month) return;
+          const key = r.barcode || r.product;
+          if (!result[key]) result[key] = { product: r.product, barcode: r.barcode, group: r.group, totalProd: 0 };
+          result[key].totalProd += (r.actualProd || 0);
+        });
+      });
+      return result;
+    }
+
     function renderAlerts() {
       const alerts = computeAlerts();
       const badge = _('bell-badge');
@@ -6856,41 +8401,90 @@
       else lbl.textContent = 'كل البيانات';
     }
 
+    /* Filter returns by PRODUCTION MONTH (prodDate) — the correct logic:
+       A return in January for something produced in February → counts against February production */
     function getSpFilteredRecords() {
       const all = S.records;
       if (SP.mode === 'cumulative') return all;
-      if (SP.mode === 'monthly' && SP.month) return all.filter(r => r.date?.startsWith(SP.month));
-      if (SP.mode === 'yearly' && SP.year) return all.filter(r => r.date?.startsWith(SP.year));
-      if (SP.mode === 'multi' && SP.multi.length) return all.filter(r => SP.multi.some(m => r.date?.startsWith(m)));
-      if (SP.mode === 'custom' && SP.from && SP.to) return all.filter(r => r.date && r.date >= SP.from && r.date <= SP.to);
+      // Use prodDate if available, otherwise fall back to return date
+      const getRef = r => {
+        if (r.prodDate && r.prodDate.length >= 7) return r.prodDate.slice(0,7);
+        return r.date?.slice(0,7) || '';
+      };
+      if (SP.mode === 'monthly' && SP.month) return all.filter(r => getRef(r) === SP.month);
+      if (SP.mode === 'yearly' && SP.year) return all.filter(r => getRef(r).startsWith(SP.year));
+      if (SP.mode === 'multi' && SP.multi.length) return all.filter(r => SP.multi.includes(getRef(r)));
+      if (SP.mode === 'custom' && SP.from && SP.to) {
+        const fm = SP.from.slice(0,7), tm = SP.to.slice(0,7);
+        return all.filter(r => { const ref = getRef(r); return ref >= fm && ref <= tm; });
+      }
       return all;
     }
 
     function getSpProd(gid) {
-      const mp = S.monthlyProduction[gid] || {};
-      const entries = Object.entries(mp);
-      if (SP.mode === 'cumulative') return entries.reduce((a, [, v]) => a + v, 0);
-      if (SP.mode === 'monthly' && SP.month) return mp[SP.month] || 0;
-      if (SP.mode === 'yearly' && SP.year) return entries.filter(([k]) => k.startsWith(SP.year)).reduce((a, [, v]) => a + v, 0);
-      if (SP.mode === 'multi' && SP.multi.length) return entries.filter(([k]) => SP.multi.includes(k)).reduce((a, [, v]) => a + v, 0);
-      if (SP.mode === 'custom' && SP.from && SP.to) { const fm = SP.from.slice(0, 7), tm = SP.to.slice(0, 7); return entries.filter(([k]) => k >= fm && k <= tm).reduce((a, [, v]) => a + v, 0); }
-      return entries.reduce((a, [, v]) => a + v, 0);
+      const ipc = {};
+      if (S.production&&S.production.halls) {
+        Object.values(S.production.halls).forEach(h=>{
+          if(!h||!h.records) return;
+          h.records.forEach(r=>{
+            if(classifyProduct(r.product||'',r.barcode||'')!==gid) return;
+            const m=(r.prodDate||r.opDate||'').slice(0,7);
+            if(m) ipc[m]=(ipc[m]||0)+(r.actualProd||0);
+          });
+        });
+      }
+      const merged=Object.assign({},ipc,S.monthlyProduction[gid]||{});
+      const E=Object.entries(merged); if(!E.length) return 0;
+      if(SP.mode==='cumulative') return E.reduce((a,[,v])=>a+v,0);
+      if(SP.mode==='monthly'&&SP.month) return merged[SP.month]||0;
+      if(SP.mode==='yearly'&&SP.year) return E.filter(([k])=>k.startsWith(SP.year)).reduce((a,[,v])=>a+v,0);
+      if(SP.mode==='multi'&&SP.multi.length) return E.filter(([k])=>SP.multi.includes(k)).reduce((a,[,v])=>a+v,0);
+      if(SP.mode==='custom'&&SP.from&&SP.to){const fm=SP.from.slice(0,7),tm=SP.to.slice(0,7);return E.filter(([k])=>k>=fm&&k<=tm).reduce((a,[,v])=>a+v,0);}
+      return E.reduce((a,[,v])=>a+v,0);
     }
 
+    function isProdMissingForSP(gid) { return getSpProd(gid) === 0; }
+
     /* Override getGroupStats to use SP filter */
+    /* Helper: get production month for a return record */
+    /* Use prodDate when present. Fall back to return date as-is — never subtract a month. */
+    function getRecProdMonth(rec) {
+      if (rec.prodDate && rec.prodDate.length >= 7) return rec.prodDate.slice(0, 7);
+      if (rec.date     && rec.date.length     >= 7) return rec.date.slice(0, 7);
+      return null;
+    }
+
+    /* Returns filtered by SP period — using PRODUCTION month (prodDate) not receipt date */
+    function getSpFilteredByProdMonth() {
+      return S.records.filter(rec => {
+        const pm = getRecProdMonth(rec);
+        if (!pm) return SP.mode === 'cumulative';
+        if (SP.mode === 'cumulative') return true;
+        if (SP.mode === 'monthly' && SP.month) return pm === SP.month;
+        if (SP.mode === 'yearly' && SP.year) return pm.startsWith(SP.year);
+        if (SP.mode === 'multi' && SP.multi.length) return SP.multi.includes(pm);
+        if (SP.mode === 'custom' && SP.from && SP.to) return pm >= SP.from.slice(0,7) && pm <= SP.to.slice(0,7);
+        return true;
+      });
+    }
+
     function getGroupStatsForStats() {
       const cfg = S.groupConfig || buildDefaultGroupConfig();
-      const r = getSpFilteredRecords();
+      // Use production-month-based filtering for accurate matching
+      const r = getSpFilteredByProdMonth();
       const stats = {};
-      cfg.forEach(g => { stats[g.id] = { id: g.id, name: g.name, color: g.color, icon: g.icon, total: 0, reasons: {}, products: new Set(), months: {} }; });
+      cfg.forEach(g => { stats[g.id] = { id: g.id, name: g.name, color: g.color, icon: g.icon, total: 0, reasons: {}, products: new Set(), months: {}, prodMonths: {} }; });
       r.forEach(rec => {
         const gid = classifyProduct(rec.product || '', rec.barcode || '');
         if (!stats[gid]) return;
         const s = stats[gid];
-        s.total += (rec.qty || 1);
-        if (rec.status) s.reasons[rec.status] = (s.reasons[rec.status] || 0) + (rec.qty || 1);
+        const qty = rec.qty || 1;
+        s.total += qty;
+        if (rec.status) s.reasons[rec.status] = (s.reasons[rec.status] || 0) + qty;
         if (rec.product || rec.barcode) s.products.add(rec.product || rec.barcode);
-        if (rec.date) { const m = rec.date.slice(0, 7); s.months[m] = (s.months[m] || 0) + (rec.qty || 1); }
+        const pm = getRecProdMonth(rec);
+        if (pm) s.prodMonths[pm] = (s.prodMonths[pm] || 0) + qty;
+        if (rec.date) { const m = rec.date.slice(0,7); s.months[m] = (s.months[m]||0)+qty; }
       });
       Object.values(stats).forEach(s => { s.productCount = s.products.size; delete s.products; });
       return cfg.map(g => stats[g.id]).filter(Boolean);
@@ -6905,33 +8499,249 @@
       renderGrpDetailTableV11(stats);
       renderGrpReturnRateChartV11(stats);
       renderGrpDefectsChart(stats);
+      renderProdMonthAnalysisTable();
     }
 
+    /* Production-month × Group analysis table */
+    function renderProdMonthAnalysisTable() {
+      const area = _('prod-month-analysis-table'); if (!area) return;
+      const cfg  = S.groupConfig || buildDefaultGroupConfig();
+      const MNF  = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+      // ── Returns per group per prodMonth ──────────────────────────────
+      const retMap   = {}; // gid → month → { qty, products:{name:qty} }
+      const retTotal = {}; // gid → total qty
+      getSpFilteredByProdMonth().forEach(r => {
+        const gid = classifyProduct(r.product||'',r.barcode||'');
+        const pm  = getRecProdMonth(r);
+        if (!gid || !pm) return;
+        if (!retMap[gid]) retMap[gid] = {};
+        if (!retMap[gid][pm]) retMap[gid][pm] = { qty:0, products:{} };
+        const qty = r.qty||1;
+        retMap[gid][pm].qty += qty;
+        retTotal[gid] = (retTotal[gid]||0) + qty;
+        const p = r.product||r.barcode||'?';
+        retMap[gid][pm].products[p] = (retMap[gid][pm].products[p]||0) + qty;
+      });
+
+      // ── Production per group per month (IPC halls + manual merged) ───
+      const prodMap = {}; // gid → month → qty
+      cfg.forEach(g => {
+        prodMap[g.id] = {};
+        if (S.production&&S.production.halls) {
+          Object.values(S.production.halls).forEach(h => {
+            if (!h||!h.records) return;
+            h.records.forEach(r => {
+              if (classifyProduct(r.product||'',r.barcode||'')!==g.id) return;
+              const m=(r.prodDate||r.opDate||'').slice(0,7); if(!m) return;
+              prodMap[g.id][m]=(prodMap[g.id][m]||0)+(r.actualProd||0);
+            });
+          });
+        }
+        Object.entries(S.monthlyProduction[g.id]||{}).forEach(([m,v])=>{prodMap[g.id][m]=v;});
+      });
+
+      // ── Month list for current SP period ─────────────────────────────
+      const allM = new Set();
+      cfg.forEach(g=>{
+        Object.keys(retMap[g.id]||{}).forEach(m=>allM.add(m));
+        Object.keys(prodMap[g.id]||{}).forEach(m=>allM.add(m));
+      });
+      const months = [...allM].filter(m=>{
+        if(SP.mode==='cumulative') return true;
+        if(SP.mode==='monthly'&&SP.month) return m===SP.month;
+        if(SP.mode==='yearly'&&SP.year) return m.startsWith(SP.year);
+        if(SP.mode==='multi'&&SP.multi.length) return SP.multi.includes(m);
+        if(SP.mode==='custom'&&SP.from&&SP.to) return m>=SP.from.slice(0,7)&&m<=SP.to.slice(0,7);
+        return true;
+      }).sort();
+
+      if (!months.length) {
+        area.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3)">لا توجد بيانات للفترة المختارة</div>';
+        return;
+      }
+
+      const active = cfg.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty||(prodMap[g.id]||{})[m]));
+      const missingProd = active.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty&&!((prodMap[g.id]||{})[m]>0)));
+
+      // ── Grand totals ─────────────────────────────────────────────────
+      const gtRet  = months.reduce((a,m)=>a+active.reduce((b,g)=>b+((retMap[g.id]||{})[m]?.qty||0),0),0);
+      const gtProd = months.reduce((a,m)=>a+active.reduce((b,g)=>b+((prodMap[g.id]||{})[m]||0),0),0);
+      const gtRate = gtProd>0&&gtRet>0?(gtRet/gtProd*100).toFixed(2):null;
+      const gtRc   = gtRate?(parseFloat(gtRate)<3?'var(--em)':parseFloat(gtRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
+
+      let html = '';
+
+      // Missing production banner
+      if (missingProd.length)
+        html+=`<div style="background:rgba(245,183,49,.1);border:1px solid rgba(245,183,49,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div style="font-size:11px;color:var(--amber)">⚠️ بيانات إنتاج ناقصة في: <b>${missingProd.map(g=>g.name).join('، ')}</b></div>
+          <button class="btn btn-gold" style="font-size:10px;padding:3px 12px" onclick="showEditProdModal()">إدخال الإنتاج</button>
+        </div>`;
+
+      // KPI bar
+      html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--bg3);border-radius:10px;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:700;color:var(--txt2)">📊 ${months.length} شهر · ${active.length} قسم</span>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+          <div style="text-align:center"><div style="font-size:17px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div><div style="font-size:9px;color:var(--txt3)">إجمالي المرتجعات</div></div>
+          <div style="text-align:center"><div style="font-size:17px;font-weight:900;color:var(--cyan)">${gtProd>0?gtProd.toLocaleString('ar-EG'):'—'}</div><div style="font-size:9px;color:var(--txt3)">إجمالي الإنتاج</div></div>
+          ${gtRate?`<div style="text-align:center"><div style="font-size:20px;font-weight:900;color:${gtRc}">${gtRate}%</div><div style="font-size:9px;color:var(--txt3)">نسبة المرتجعات</div></div>`:''}
+        </div>
+      </div>`;
+
+      // ── Interactive table ─────────────────────────────────────────────
+      const thStyle = 'padding:8px 6px;text-align:center;border-bottom:2px solid var(--border2);font-size:10px;font-weight:700;white-space:nowrap;background:var(--bg4)';
+      const thStyleR = 'padding:8px 8px;text-align:right;border-bottom:2px solid var(--border2);font-size:10px;font-weight:700;background:var(--bg4)';
+
+      html+=`<div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border)">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr>
+            <th style="${thStyleR};min-width:130px">القسم</th>
+            ${months.map(m=>{const[y,mo]=m.split('-');return `<th style="${thStyle};min-width:120px">
+              <div>${MNF[+mo-1]} ${y}</div>
+            </th>`;}).join('')}
+            <th style="${thStyle};min-width:110px;border-right:2px solid var(--border2)">الإجمالي</th>
+          </tr>
+          <tr style="background:var(--bg4);border-bottom:1px solid var(--border)">
+            <td style="padding:4px 8px;font-size:9px;color:var(--txt3)">↩ مرتجع / 🏭 إنتاج / 📊 نسبة</td>
+            ${months.map(()=>`<td style="padding:4px;text-align:center;font-size:9px;color:var(--txt4)">↩ / 🏭 / %</td>`).join('')}
+            <td style="padding:4px;text-align:center;font-size:9px;color:var(--txt4);border-right:2px solid var(--border2)">مجموع</td>
+          </tr>
+        </thead>
+        <tbody>
+        ${active.map(g=>{
+          const tR=months.reduce((a,m)=>a+((retMap[g.id]||{})[m]?.qty||0),0);
+          const tP=months.reduce((a,m)=>a+((prodMap[g.id]||{})[m]||0),0);
+          const tRate=tP>0&&tR>0?(tR/tP*100).toFixed(2):null;
+          const tRc=tRate?(parseFloat(tRate)<3?'var(--em)':parseFloat(tRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
+          return `<tr style="border-bottom:1px solid var(--border)" id="pmr-${g.id}">
+            <td style="padding:7px 8px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${g.color};flex-shrink:0"></span>
+                <span style="font-weight:700;font-size:11px">${g.icon} ${g.name}</span>
+              </div>
+              <button style="font-size:8px;padding:2px 7px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--txt3);cursor:pointer;margin-top:4px" onclick="toggleProdRowDetail('prd-${g.id}')">▾ تفاصيل المنتجات</button>
+            </td>
+            ${months.map(m=>{
+              const rd=(retMap[g.id]||{})[m];
+              const pd=(prodMap[g.id]||{})[m]||0;
+              if(!rd?.qty&&!pd) return `<td style="padding:7px 6px;text-align:center;color:var(--txt4);font-size:10px">—</td>`;
+              const rate=pd>0&&rd?.qty>0?(rd.qty/pd*100).toFixed(2):null;
+              const rc=rate?(parseFloat(rate)<3?'var(--em)':parseFloat(rate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
+              const hasMissingProd=rd?.qty>0&&!pd;
+              return `<td style="padding:7px 6px;text-align:center;vertical-align:middle">
+                ${rd?.qty?`<div style="font-size:12px;font-weight:800;color:var(--red)">↩ ${rd.qty}</div>`:''}
+                ${pd?`<div style="font-size:10px;color:var(--cyan)">🏭 ${pd.toLocaleString('ar-EG')}</div>`:hasMissingProd?`<div style="font-size:9px;color:var(--amber)">🏭 <input type="number" min="0" placeholder="أدخل الإنتاج" style="width:80px;padding:2px 4px;border-radius:4px;border:1px solid var(--amber);background:var(--bg4);color:var(--txt);font-size:9px" onchange="updateProdVal('${g.id}','${m}',this.value)" /></div>`:''}
+                ${rate?`<div style="font-size:11px;font-weight:900;color:${rc}">${rate}%</div>`:''}
+              </td>`;
+            }).join('')}
+            <td style="padding:7px 6px;text-align:center;border-right:2px solid var(--border2);background:var(--bg3)">
+              ${tR?`<div style="font-size:13px;font-weight:900;color:var(--red)">↩ ${tR.toLocaleString('ar-EG')}</div>`:''}
+              ${tP?`<div style="font-size:10px;color:var(--cyan)">🏭 ${tP.toLocaleString('ar-EG')}</div>`:''}
+              ${tRate?`<div style="font-size:13px;font-weight:900;color:${tRc}">${tRate}%</div>`:''}
+            </td>
+          </tr>
+          <!-- Product-level drill-down row -->
+          <tr id="prd-${g.id}" style="display:none">
+            <td colspan="${months.length+2}" style="padding:0">
+              <div style="background:var(--bg4);border-top:1px dashed var(--border);border-bottom:1px solid var(--border2)">
+                <div style="padding:8px 12px">
+                  <div style="font-size:10px;color:var(--cyan);font-weight:700;margin-bottom:8px">📦 تفاصيل المنتجات — ${g.icon} ${g.name}</div>
+                  ${(()=>{
+                    // Build per-product table
+                    const prodItems={};
+                    months.forEach(m=>{
+                      const rd=(retMap[g.id]||{})[m]; if(!rd) return;
+                      Object.entries(rd.products||{}).forEach(([p,q])=>{
+                        if(!prodItems[p]) prodItems[p]={totalRet:0,byMonth:{}};
+                        prodItems[p].totalRet+=q; prodItems[p].byMonth[m]=q;
+                      });
+                    });
+                    const sorted=Object.entries(prodItems).sort((a,b)=>b[1].totalRet-a[1].totalRet);
+                    if(!sorted.length) return '<div style="font-size:10px;color:var(--txt4);padding:6px">لا توجد بيانات</div>';
+                    return `<table style="width:100%;border-collapse:collapse;font-size:10px">
+                      <thead><tr style="color:var(--txt3)">
+                        <th style="padding:5px 8px;text-align:right;min-width:160px">المنتج</th>
+                        ${months.map(m=>{const[y,mo]=m.split('-');return `<th style="padding:5px;text-align:center;min-width:70px">${MN_SHORT[+mo-1]} ${y.slice(2)}</th>`;}).join('')}
+                        <th style="padding:5px;text-align:center">الإجمالي</th>
+                      </tr></thead>
+                      <tbody>${sorted.map(([p,d])=>`<tr style="border-top:1px solid var(--border)">
+                        <td style="padding:5px 8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:var(--txt2)" title="${p}">${p}</td>
+                        ${months.map(m=>{const q=d.byMonth[m]||0;const pd=(prodMap[g.id]||{})[m]||0;const rt=pd>0&&q>0?(q/pd*100).toFixed(1):null;const rc=rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'';return q?`<td style="padding:5px;text-align:center"><b style="color:var(--red)">${q}</b>${rt?`<br><span style="font-size:8.5px;color:${rc}">${rt}%</span>`:''}</td>`:`<td style="padding:5px;text-align:center;color:var(--txt4)">—</td>`;}).join('')}
+                        <td style="padding:5px;text-align:center;font-weight:800;color:var(--red)">${d.totalRet}</td>
+                      </tr>`).join('')}</tbody>
+                    </table>`;
+                  })()}
+                </div>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+        <!-- Grand total row -->
+        <tr style="font-weight:900;background:var(--bg3);border-top:2px solid var(--border2)">
+          <td style="padding:8px 8px;font-weight:800;color:var(--gold)">📊 الإجمالي الكلي</td>
+          ${months.map(m=>{
+            const tR=active.reduce((a,g)=>a+((retMap[g.id]||{})[m]?.qty||0),0);
+            const tP=active.reduce((a,g)=>a+((prodMap[g.id]||{})[m]||0),0);
+            const rate=tP>0&&tR>0?(tR/tP*100).toFixed(2):null;
+            const rc=rate?(parseFloat(rate)<3?'var(--em)':parseFloat(rate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
+            return `<td style="padding:8px 6px;text-align:center">
+              ${tR?`<div style="font-size:12px;font-weight:900;color:var(--red)">↩ ${tR.toLocaleString('ar-EG')}</div>`:''}
+              ${tP?`<div style="font-size:10px;color:var(--cyan)">🏭 ${tP.toLocaleString('ar-EG')}</div>`:''}
+              ${rate?`<div style="font-size:11px;font-weight:900;color:${rc}">${rate}%</div>`:''}
+            </td>`;
+          }).join('')}
+          <td style="padding:8px;text-align:center;border-right:2px solid var(--border2)">
+            ${gtRet?`<div style="font-size:14px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div>`:''}
+            ${gtProd?`<div style="font-size:11px;color:var(--cyan)">🏭 ${gtProd.toLocaleString('ar-EG')}</div>`:''}
+            ${gtRate?`<div style="font-size:14px;font-weight:900;color:${gtRc}">${gtRate}%</div>`:''}
+          </td>
+        </tr>
+        </tbody>
+      </table></div>`;
+
+      area.innerHTML = html;
+    }
+
+    function toggleProdRowDetail(id) {
+      const el = _(id); if (!el) return;
+      el.style.display = el.style.display==='none'?'':'none';
+    }
     function renderGrpCardsV11(stats) {
       const grid = _('grp-cards-grid'); if (!grid) return;
+      const spLbl = _('sp-label')?.textContent || 'كل البيانات';
       grid.innerHTML = stats.map(s => {
         const prod = getSpProd(s.id);
-        const rate = prod > 0 ? ((s.total / prod) * 100).toFixed(1) : '—';
-        const rateCls = rate === '—' ? '' : parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad';
+        const prodMissing = s.total > 0 && isProdMissingForSP(s.id);
+        const rate = prod > 0 ? ((s.total / prod) * 100).toFixed(1) : null;
+        const rateCls = !rate ? '' : parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad';
         const fillPct = prod > 0 ? Math.min(100, (s.total / prod * 100)) : 0;
-        const topReason = Object.entries(s.reasons).sort((a, b) => b[1] - a[1])[0];
-        return `
-    <div class="grp-card" onclick="openGroupItemsDetail('${s.id}')" style="cursor:pointer">
-      <div class="grp-card-top-bar" style="background:${s.color}"></div>
-      <div style="display:flex;align-items:center;gap:9px;margin-top:4px">
-        <div style="font-size:20px">${s.icon}</div>
-        <div style="flex:1"><div class="grp-card-name">${s.name}</div>
-        <div style="font-size:10px;color:var(--txt3)">${s.productCount} منتج · ${updateSpLabel(), _('sp-label')?.textContent || ''}</div></div>
-        ${rate !== '—' ? `<span class="rate-chip ${rateCls}">${rate}%</span>` : ''}
-      </div>
-      <div class="grp-card-stats">
-        <div class="grp-stat"><div class="grp-stat-lbl">مرتجع</div><div class="grp-stat-val" style="color:${s.color}">${s.total.toLocaleString('ar-EG')}</div></div>
-        <div class="grp-stat"><div class="grp-stat-lbl">إنتاج</div><div class="grp-stat-val" style="color:var(--cyan)">${prod ? prod.toLocaleString('ar-EG') : '—'}</div></div>
-        <div class="grp-stat"><div class="grp-stat-lbl">عيوب</div><div class="grp-stat-val" style="color:var(--red)">${Object.keys(s.reasons).length}</div></div>
-      </div>
-      <div class="grp-rate-bar"><div class="grp-rate-fill" style="width:${fillPct}%;background:${s.color}"></div></div>
-      ${topReason ? `<div style="font-size:10px;color:var(--txt3);margin-top:5px">⚠️ <span style="color:${s.color}">${topReason[0].slice(0, 30)}</span></div>` : ''}
-    </div>`;
+        const topReason = Object.entries(s.reasons).sort((a,b) => b[1]-a[1])[0];
+        return `<div class="grp-card" onclick="openGroupItemsDetail('${s.id}')" style="cursor:pointer">
+          <div class="grp-card-top-bar" style="background:${s.color}"></div>
+          <div style="display:flex;align-items:center;gap:9px;margin-top:4px">
+            <div style="font-size:20px">${s.icon}</div>
+            <div style="flex:1">
+              <div class="grp-card-name">${s.name}</div>
+              <div style="font-size:10px;color:var(--txt3)">${s.productCount} منتج · ${spLbl}</div>
+            </div>
+            ${rate ? `<span class="rate-chip ${rateCls}">${rate}%</span>` : prodMissing ? `<span style="font-size:9px;color:var(--amber)">⚠️ بدون إنتاج</span>` : ''}
+          </div>
+          <div class="grp-card-stats">
+            <div class="grp-stat"><div class="grp-stat-lbl">مرتجع</div><div class="grp-stat-val" style="color:${s.color}">${s.total.toLocaleString('ar-EG')}</div></div>
+            <div class="grp-stat">
+              <div class="grp-stat-lbl">إنتاج</div>
+              <div class="grp-stat-val" style="color:${prodMissing?'var(--amber)':'var(--cyan)'}">
+                ${prod ? prod.toLocaleString('ar-EG') : prodMissing ? '—' : '—'}
+              </div>
+            </div>
+            <div class="grp-stat"><div class="grp-stat-lbl">عيوب</div><div class="grp-stat-val" style="color:var(--red)">${Object.keys(s.reasons).length}</div></div>
+          </div>
+          <div class="grp-rate-bar"><div class="grp-rate-fill" style="width:${fillPct}%;background:${s.color}"></div></div>
+          ${prodMissing ? `<div style="font-size:9.5px;color:var(--amber);margin-top:5px;cursor:pointer" onclick="event.stopPropagation();showEditProdModal()">⚠️ يرجى إدخال كمية الإنتاج لهذه الفترة</div>` : ''}
+          ${topReason && !prodMissing ? `<div style="font-size:10px;color:var(--txt3);margin-top:5px">⚠️ <span style="color:${s.color}">${topReason[0].slice(0,30)}</span></div>` : ''}
+        </div>`;
       }).join('');
     }
 
@@ -6939,37 +8749,60 @@
       const tbody = _('grp-detail-tbody'); if (!tbody) return;
       tbody.innerHTML = stats.map(s => {
         const prod = getSpProd(s.id);
-        const rate = prod > 0 ? ((s.total / prod) * 100).toFixed(2) : '—';
-        const rateCls = rate === '—' ? '' : parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad';
+        const prodMissing = s.total > 0 && isProdMissingForSP(s.id);
+        const rate = prod > 0 ? ((s.total / prod) * 100).toFixed(2) : null;
+        const rateCls = !rate ? '' : parseFloat(rate) < 3 ? 'rate-good' : parseFloat(rate) < 8 ? 'rate-warn' : 'rate-bad';
 
-        // Build ALL reasons with counts and percentages
         const sortedR = Object.entries(s.reasons).sort((a, b) => b[1] - a[1]);
         const total = s.total || 1;
         const reasonsHtml = sortedR.map(([name, cnt]) =>
           `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:10.5px;border-bottom:1px solid rgba(255,255,255,.05)">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2)">${name}</span>
-        <span style="font-weight:700;color:var(--txt);min-width:35px;text-align:center">${cnt}</span>
-        <span style="color:var(--txt3);min-width:40px;text-align:left">${(cnt / total * 100).toFixed(1)}%</span>
-      </div>`
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2)">${name}</span>
+            <span style="font-weight:700;color:var(--txt);min-width:35px;text-align:center">${cnt}</span>
+            <span style="color:var(--txt3);min-width:40px;text-align:left">${(cnt/total*100).toFixed(1)}%</span>
+          </div>`
         ).join('');
 
+        // Production month breakdown for this group
+        const prodMonthBreakdown = Object.entries(s.prodMonths||{}).sort((a,b)=>a[0]<b[0]?-1:1)
+          .map(([m,qty]) => { const [y,mo]=m.split('-'); return `<span style="font-size:9px;background:var(--bg4);border-radius:8px;padding:1px 6px;margin:1px">${MN_SHORT[+mo-1]} ${y.slice(2)}: <b>${qty}</b></span>`; }).join('');
+
         return `<tr>
-      <td><span style="display:inline-flex;align-items:center;gap:6px">
-        <span style="width:9px;height:9px;border-radius:50%;background:${s.color};display:inline-block"></span>
-        ${s.icon} ${s.name}
-      </span></td>
-      <td style="color:${s.color};font-weight:900">${s.total.toLocaleString('ar-EG')}</td>
-      <td>${prod ? prod.toLocaleString('ar-EG') : '—'}</td>
-      <td><span class="rate-chip ${rateCls}">${rate !== '—' ? rate + '%' : '—'}</span></td>
-      <td style="max-width:300px;padding:8px 12px">
-        <div style="font-size:10px;color:var(--txt3);margin-bottom:5px">جميع الأسباب (${sortedR.length}):</div>
-        <div style="max-height:140px;overflow-y:auto;padding-right:2px">
-          ${reasonsHtml}
-        </div>
-      </td>
-      <td>${s.productCount}</td>
-      <td><button class="btn btn-ghost" style="font-size:10px;padding:3px 9px" onclick="openGroupItemsDetail('${s.id}')">👁️</button></td>
-    </tr>`;
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:6px">
+              <span style="width:9px;height:9px;border-radius:50%;background:${s.color};display:inline-block;flex-shrink:0"></span>
+              ${s.icon} ${s.name}
+            </span>
+            ${prodMonthBreakdown ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:2px">${prodMonthBreakdown}</div>` : ''}
+          </td>
+          <td style="color:${s.color};font-weight:900">${s.total.toLocaleString('ar-EG')}</td>
+          <td>
+            ${prod > 0
+              ? `<span style="color:var(--cyan);font-weight:700">${prod.toLocaleString('ar-EG')}</span>`
+              : prodMissing
+                ? `<span style="color:var(--amber);font-size:10px;cursor:pointer" onclick="showEditProdModal()" title="انقر لإدخال الإنتاج">⚠️ يرجى إدخال كمية الإنتاج</span>`
+                : '<span style="color:var(--txt4)">—</span>'
+            }
+          </td>
+          <td>
+            ${rate
+              ? `<span class="rate-chip ${rateCls}">${rate}%</span>`
+              : prodMissing
+                ? `<span style="color:var(--amber);font-size:10px">غير محسوبة</span>`
+                : '<span style="color:var(--txt4)">—</span>'
+            }
+          </td>
+          <td style="max-width:300px;padding:8px 12px">
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:5px">جميع الأسباب (${sortedR.length}):</div>
+            <div style="max-height:140px;overflow-y:auto;padding-right:2px">${reasonsHtml}</div>
+          </td>
+          <td>
+            <span style="cursor:pointer;color:var(--cyan);font-weight:700" onclick="openGroupItemsDetail('${s.id}')" title="عرض المنتجات">${s.productCount}</span>
+          </td>
+          <td>
+            <button class="btn btn-ghost" style="font-size:10px;padding:3px 9px" onclick="openGroupItemsDetail('${s.id}')">👁️ عرض</button>
+          </td>
+        </tr>`;
       }).join('');
     }
 
@@ -7146,14 +8979,15 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
             records: DataProcessor.normalize(Array.isArray(p.records) ? p.records : []),
             lastSaved: p.lastSaved || null,
             groupConfig: p.groupConfig || null,
-            monthlyProduction: p.monthlyProduction || {}
+            monthlyProduction: p.monthlyProduction || {},
+            production: p.production || { halls: {} }
           };
           if (!S.groupConfig) S.groupConfig = buildDefaultGroupConfig();
           if (S.lastSaved) _('nav-save-txt').innerHTML = `<b>آخر حفظ:</b> ${new Date(S.lastSaved).toLocaleTimeString('ar-EG')}`;
           return true;
         }
       } catch (e) { toast('تعذر قراءة البيانات', 'err'); }
-      S = { records: [], lastSaved: null, groupConfig: buildDefaultGroupConfig(), monthlyProduction: {} };
+      S = { records: [], lastSaved: null, groupConfig: buildDefaultGroupConfig(), monthlyProduction: {}, production: { halls: {} } };
       return false;
     }
 
@@ -7170,6 +9004,7 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
       records: '🗃️ سجلات المرتجعات',
       import: '📂 استيراد Excel',
       backup: '💾 النسخ الاحتياطي',
+      production: '🏭 لوحة الإنتاج',
     };
 
     function goto(name, navEl) {
@@ -7179,7 +9014,7 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
       if (navEl) navEl.classList.add('on');
       else {
         const navItems = document.querySelectorAll('.ni');
-        const pgMap = { overview: 0, products: 1, reasons: 2, trends: 3, matrix: 4, records: 5, import: 6, backup: 7 };
+        const pgMap = { overview: 0, products: 1, reasons: 2, trends: 3, matrix: 4, production: 5, groups: 6, records: 7, import: 8, backup: 9 };
         const idx = pgMap[name] ?? 0;
         if (navItems[idx]) navItems[idx].classList.add('on');
       }
@@ -7193,6 +9028,7 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
       else if (name === 'groups') renderGroupsPage();
       else if (name === 'records') renderRecords();
       else if (name === 'backup') refreshStorage();
+      else if (name === 'production') renderProductionPage();
     }
 
     function toggleSidebar() { const n = _('nav'), o = _('overlay'); n.classList.toggle('open'); o.style.display = n.classList.contains('open') ? 'block' : 'none'; }
@@ -7245,6 +9081,7 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
       load();
       if (!S.groupConfig) S.groupConfig = buildDefaultGroupConfig();
       if (!S.groupTargets) S.groupTargets = {};
+      if (!S.production) S.production = { halls: {} };
       populateFilterSelects();
       updateBadges();
       markClean();
