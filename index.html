@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
 <head>
@@ -5475,6 +5475,7 @@
           S.records = DataProcessor.normalize(S.records);
           setPb(90, 'حفظ...');
           save(true); updateBadges(); populateFilterSelects();
+          if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) setTimeout(renderProductionPage,250);
           setPb(100, '✓ اكتمل');
 
           const totalQty = S.records.reduce((a,r)=>a+r.qty,0);
@@ -5484,7 +5485,10 @@
 
           if (totalAdded > 0) {
             toast(`✅ تم استيراد ${totalAdded} سجل — إجمالي الكمية: ${S.records.slice(-totalAdded).reduce((a,r)=>a+r.qty,0)} وحدة`);
-            // Detect months missing production data — keyed by PRODUCTION month (prodDate)
+            // Re-render production halls dynamically with new return data
+            if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) {
+              setTimeout(renderProductionPage, 300);
+            }
             const missing = getMissingProdMonths();
             if (missing.length > 0) setTimeout(() => showMissingProdModal(missing), 1200);
           } else toast('لم يُستورد أي سجل', 'err');
@@ -5728,16 +5732,34 @@
        ══════════════════════════════════════════════════════════════════════ */
 
     // Group display config: priority order, Arabic labels, colors
+    /* Production group config — two main categories only:
+       🤖 أوتوماتيك: Honey Automation + TEA Automation
+       👐 يدوي: Honey Manual + Manual + Oil Semi Automation + NA + any other */
     const PROD_GROUPS = [
-      { key: 'Honey Automation', label: '🤖 أتمتة العسل', color: 'var(--cyan)', badge: 'Automation' },
-      { key: 'Honey Manual',     label: '👐 يدوي العسل',  color: 'var(--gold)', badge: 'Manual' },
-      { key: 'Manual',           label: '🔧 يدوي عام',    color: 'var(--violet)', badge: 'Manual' },
-      { key: 'Oil Semi Automation', label: '🫙 زيوت شبه أتمتة', color: 'var(--blue)', badge: 'Semi' },
-      { key: 'External',         label: '📦 خارجي',       color: 'var(--amber)', badge: 'Ext' },
-      { key: 'external',         label: '📦 خارجي',       color: 'var(--amber)', badge: 'Ext' },
-      { key: 'TEA Automation',   label: '🍵 أتمتة شاي',   color: 'var(--em)', badge: 'Tea' },
-      { key: 'NA',               label: '⭕ غير محدد',    color: 'var(--txt3)', badge: 'NA' },
+      { key: 'Honey Automation', label: '🤖 أوتوماتيك',  color: 'var(--cyan)',   badge: 'Auto', category: 'auto' },
+      { key: 'TEA Automation',   label: '🤖 أوتوماتيك',  color: 'var(--cyan)',   badge: 'Auto', category: 'auto' },
+      { key: 'Honey Manual',     label: '👐 يدوي',        color: 'var(--gold)',   badge: 'يدوي', category: 'manual' },
+      { key: 'Manual',           label: '👐 يدوي',        color: 'var(--gold)',   badge: 'يدوي', category: 'manual' },
+      { key: 'Oil Semi Automation', label: '👐 يدوي',     color: 'var(--gold)',   badge: 'يدوي', category: 'manual' },
+      { key: 'External',         label: '📦 خارجي',       color: 'var(--amber)',  badge: 'Ext',  category: 'external' },
+      { key: 'external',         label: '📦 خارجي',       color: 'var(--amber)',  badge: 'Ext',  category: 'external' },
+      { key: 'NA',               label: '👐 يدوي',        color: 'var(--gold)',   badge: 'يدوي', category: 'manual' },
     ];
+    /* Normalize raw group key from IPC file → canonical display group */
+    function normalizeHallGroup(rawGroup) {
+      const g = String(rawGroup||'').trim();
+      if (!g || g === 'NA' || g === 'null') return 'manual'; // default to manual
+      const upper = g.toLowerCase();
+      if (upper.includes('automation') && (upper.includes('honey') || upper.includes('tea'))) return 'auto';
+      if (upper.includes('automation') || upper.includes('auto')) return 'auto';
+      return 'manual'; // everything else: manual
+    }
+    function hallGroupLabel(rawGroup) {
+      const cat = normalizeHallGroup(rawGroup);
+      if (cat === 'auto') return { label: '🤖 أوتوماتيك', color: 'var(--cyan)', key: 'auto' };
+      if (cat === 'external') return { label: '📦 خارجي', color: 'var(--amber)', key: 'external' };
+      return { label: '👐 يدوي', color: 'var(--gold)', key: 'manual' };
+    }
 
     const SIGMA_COLORS = { 6:'var(--em)', 5:'var(--cyan)', 4:'var(--blue)', 3:'var(--gold)', 2:'var(--amber)', 1:'var(--orange)', 0:'var(--red)' };
     const GRADE_AR = { first:'ممتاز جداً', second:'ممتاز', third:'جيد جداً', fourth:'جيد', '5th':'مقبول', reject:'مرفوض' };
@@ -5901,11 +5923,24 @@
           // Merge barcodes (new overrides old for same code)
           Object.assign(hall.barcodes, barcodeMap);
 
-          // Deduplicate records by (barcode + prodDate + batch) before merging
-          const existingKeys = new Set(hall.records.map(r => `${r.barcode}|${r.prodDate}|${r.batch}`));
-          const newRecs = records.filter(r => {
-            const k = `${r.barcode}|${r.prodDate}|${r.batch}`;
-            return !existingKeys.has(k);
+          // Deduplicate by (barcode + prodDate-month + opDate) to avoid exact-day diffs
+          // Also AGGREGATE same product+month (sum actualProd instead of duplicating)
+          const existingKeys = new Set(hall.records.map(r =>
+            `${r.barcode}|${(r.prodDate||r.opDate||'').slice(0,7)}|${r.opDate}`
+          ));
+          const newRecs = [];
+          records.forEach(r => {
+            const k = `${r.barcode}|${(r.prodDate||r.opDate||'').slice(0,7)}|${r.opDate}`;
+            if (existingKeys.has(k)) {
+              // Accumulate into existing record (same product, same prod month, same op date)
+              const existing = hall.records.find(e =>
+                `${e.barcode}|${(e.prodDate||e.opDate||'').slice(0,7)}|${e.opDate}` === k
+              );
+              if (existing) existing.actualProd += r.actualProd;
+            } else {
+              existingKeys.add(k);
+              newRecs.push(r);
+            }
           });
           hall.records.push(...newRecs);
 
@@ -6158,7 +6193,7 @@
         return;
       }
 
-      // Aggregate records from both halls
+      // ── 1. Aggregate IPC production records from both halls ──
       const allRecs = [];
       Object.entries(S.production.halls).forEach(([hk, h]) => {
         if (!h || !h.records) return;
@@ -6166,153 +6201,259 @@
         h.records.forEach(r => allRecs.push({...r, _hall: hk}));
       });
 
-      // Apply filters
+      // Apply filters on IPC records
       let filtered = allRecs;
       if (combMonthSel) filtered = filtered.filter(r => (r.prodDate||r.opDate||'').startsWith(combMonthSel));
       if (combGroupSel) filtered = filtered.filter(r => r.group === combGroupSel);
-      if (combSearch) filtered = filtered.filter(r =>
+      if (combSearch)   filtered = filtered.filter(r =>
         (r.product||'').toLowerCase().includes(combSearch) ||
-        (r.barcode||'').toLowerCase().includes(combSearch)
-      );
+        (r.barcode||'').toLowerCase().includes(combSearch));
 
-      // Aggregate by product barcode
+      // ── 2. Aggregate by product (key = normalized barcode, fallback product name) ──
+      const normKey = s => String(s||'').trim().toLowerCase();
       const prodMap = {};
       filtered.forEach(r => {
-        const key = r.barcode || r.product;
+        const bc  = normKey(r.barcode);
+        const nm  = normKey(r.product);
+        const key = bc || nm;
+        if (!key) return;
         if (!prodMap[key]) prodMap[key] = {
-          barcode: r.barcode, product: r.product, group: r.group,
-          hall1Prod: 0, hall2Prod: 0, totalProd: 0, runs: 0,
+          _key: key,
+          barcode:  String(r.barcode||'').trim(),
+          product:  r.product || r.barcode || '',
+          group:    r.group || '',
+          hall1Prod:0, hall2Prod:0, totalProd:0, runs:0,
           defA:0, defB:0, defC:0, defD:0, totalDef:0,
-          totalSample:0, rework:0, sigmas:[], grades:[]
+          totalSample:0, rework:0, sigmas:[], grades:[],
+          prodByMonth: {}
         };
         const p = prodMap[key];
-        p.totalProd += (r.actualProd||0);
-        if (r._hall==='hall1') p.hall1Prod += (r.actualProd||0);
-        else p.hall2Prod += (r.actualProd||0);
+        const qty = r.actualProd||0;
+        p.totalProd += qty;
+        if (r._hall==='hall1') p.hall1Prod += qty; else p.hall2Prod += qty;
         p.runs++;
         p.defA+=(r.defA||0); p.defB+=(r.defB||0); p.defC+=(r.defC||0); p.defD+=(r.defD||0);
         p.totalDef+=(r.totalDef||0); p.totalSample+=(r.totalSample||0);
         p.rework+=(r.rework||0);
         if (r.sigma!=null) p.sigmas.push(r.sigma);
         if (r.grade) p.grades.push(r.grade);
+        const m = (r.prodDate||r.opDate||'').slice(0,7);
+        if (m) p.prodByMonth[m] = (p.prodByMonth[m]||0)+qty;
       });
-
       const products = Object.values(prodMap).sort((a,b)=>b.totalProd-a.totalProd);
 
-      // Grand totals
-      const gtProd  = products.reduce((a,p)=>a+p.totalProd,0);
-      const gtRework = products.reduce((a,p)=>a+p.rework,0);
-      const gtDef   = products.reduce((a,p)=>a+p.totalDef,0);
-      const gtSamp  = products.reduce((a,p)=>a+p.totalSample,0);
-      const allSigmas = products.flatMap(p=>p.sigmas);
-      const avgSig = allSigmas.length ? (allSigmas.reduce((a,b)=>a+b,0)/allSigmas.length).toFixed(1) : '—';
-      const defRate = gtSamp > 0 ? (gtDef/gtSamp*100).toFixed(2) : '—';
-
-      // Returns integration
-      const retMap = {};
+      // ── 3. ROBUST RETURN MATCHING ──
+      // For each S.records return, match to a product by:
+      //   a) exact normalized barcode match
+      //   b) exact normalized product-name match
+      //   c) partial barcode match (trimmed leading zeros etc.)
+      // Apply month filter: if combMonthSel active, only count returns whose
+      //   prodDate (or date) falls in that month
+      const retData = {}; // key → { qty, byMonth:{m→qty} }
       S.records.forEach(r => {
-        const bc = String(r.barcode||'').trim();
-        retMap[bc] = (retMap[bc]||0) + (r.qty||1);
-      });
-      const gtRet = products.reduce((a,p) => a+(retMap[p.barcode||p.product]||0), 0);
-      const gtRetRate = gtProd > 0 && gtRet > 0 ? (gtRet/gtProd*100).toFixed(2) : '—';
+        const rbc  = normKey(r.barcode);
+        const rnm  = normKey(r.product);
+        const qty  = r.qty||1;
 
-      // KPI bar
+        // Month alignment: return is linked to its production month
+        const retProdMonth = r.prodDate ? r.prodDate.slice(0,7)
+                           : r.date     ? r.date.slice(0,7) : '';
+
+        // If month filter active, only count returns where prodDate matches
+        if (combMonthSel && retProdMonth !== combMonthSel) return;
+
+        // Find which product this return belongs to
+        let matchKey = null;
+        if (rbc && prodMap[rbc]) matchKey = rbc;
+        else if (rnm && prodMap[rnm]) matchKey = rnm;
+        else if (rbc) {
+          // Try matching against all product keys (handles leading zeros / extra chars)
+          for (const k of Object.keys(prodMap)) {
+            if (k.replace(/^0+/,'') === rbc.replace(/^0+/,'') && rbc.length > 2) {
+              matchKey = k; break;
+            }
+          }
+        }
+        if (rnm && !matchKey) {
+          for (const k of Object.keys(prodMap)) {
+            if (prodMap[k].product && normKey(prodMap[k].product) === rnm) {
+              matchKey = k; break;
+            }
+          }
+        }
+        if (!matchKey) return; // no match — skip
+
+        if (!retData[matchKey]) retData[matchKey] = { qty:0, byMonth:{} };
+        retData[matchKey].qty += qty;
+        if (retProdMonth) retData[matchKey].byMonth[retProdMonth] = (retData[matchKey].byMonth[retProdMonth]||0)+qty;
+      });
+
+      // Attach return data to each product
+      products.forEach(p => {
+        const rd = retData[p._key] || { qty:0, byMonth:{} };
+        p.retQty = rd.qty;
+        p.retByMonth = rd.byMonth;
+        p.retRate = p.totalProd>0 && p.retQty>0 ? (p.retQty/p.totalProd*100).toFixed(2) : null;
+      });
+
+      // ── 4. Grand totals ──
+      const gtProd    = products.reduce((a,p)=>a+p.totalProd,0);
+      const gtRet     = products.reduce((a,p)=>a+p.retQty,0);
+      const gtRework  = products.reduce((a,p)=>a+p.rework,0);
+      const gtDef     = products.reduce((a,p)=>a+p.totalDef,0);
+      const gtSamp    = products.reduce((a,p)=>a+p.totalSample,0);
+      const allSigmas = products.flatMap(p=>p.sigmas);
+      const avgSig    = allSigmas.length ? (allSigmas.reduce((a,b)=>a+b,0)/allSigmas.length).toFixed(1) : '—';
+      const defRate   = gtSamp>0 ? (gtDef/gtSamp*100).toFixed(2) : '—';
+      const gtRetRate = gtProd>0 && gtRet>0 ? (gtRet/gtProd*100).toFixed(2) : '—';
+      const retRateC  = gtRetRate==='—'?'var(--em)':parseFloat(gtRetRate)>5?'var(--red)':parseFloat(gtRetRate)>2?'var(--amber)':'var(--em)';
+
+      // ── 5. KPI bar ──
       const kpisEl = _('combined-kpis');
       if (kpisEl) kpisEl.innerHTML = [
-        ['إجمالي الإنتاج', gtProd.toLocaleString('ar-EG'), 'var(--cyan)'],
-        ['متوسط سيجما', `${avgSig} σ`, 'var(--em)'],
-        ['معدل العيوب', `${defRate}%`, 'var(--amber)'],
-        ['نسبة المرتجعات', gtRet>0?`${gtRetRate}%`:'—', parseFloat(gtRetRate)>5?'var(--red)':parseFloat(gtRetRate)>2?'var(--amber)':'var(--em)'],
-        ['إعادة تشغيل', gtRework.toLocaleString('ar-EG'), 'var(--gold)'],
-        ['عدد الأصناف', products.length, 'var(--blue)'],
-        ['تشغيلات', filtered.length, 'var(--violet)'],
-        ['المرتجعات', gtRet.toLocaleString('ar-EG'), 'var(--red2)'],
-      ].map(([lbl,val,clr]) => `<div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
-        <div style="font-size:16px;font-weight:900;color:${clr}">${val}</div>
-        <div style="font-size:9px;color:var(--txt3)">${lbl}</div>
-      </div>`).join('');
+        ['إجمالي الإنتاج',  gtProd.toLocaleString('ar-EG'),   'var(--cyan)'],
+        ['متوسط سيجما',     `${avgSig} σ`,                    'var(--em)'],
+        ['معدل العيوب IPC', `${defRate}%`,                    'var(--amber)'],
+        ['نسبة المرتجعات',  gtRetRate!=='—'?`${gtRetRate}%`:'—', retRateC],
+        ['إعادة تشغيل',     gtRework.toLocaleString('ar-EG'), 'var(--gold)'],
+        ['عدد الأصناف',     products.length,                  'var(--blue)'],
+        ['تشغيلات',         filtered.length,                  'var(--violet)'],
+        ['إجمالي المرتجعات', gtRet>0?gtRet.toLocaleString('ar-EG'):'—', gtRet>0?'var(--red)':'var(--txt3)'],
+      ].map(([lbl,val,clr]) => `
+        <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:900;color:${clr}">${val}</div>
+          <div style="font-size:9px;color:var(--txt3)">${lbl}</div>
+        </div>`).join('');
 
-      const SIGMA_C = {6:'var(--em)',5:'var(--cyan)',4:'var(--blue)',3:'var(--gold)',2:'var(--amber)',1:'var(--orange)',0:'var(--red)'};
+      // ── 6. Build table ──
+      const SIGMA_C  = {6:'var(--em)',5:'var(--cyan)',4:'var(--blue)',3:'var(--gold)',2:'var(--amber)',1:'var(--orange)',0:'var(--red)'};
       const GRADE_AR = {first:'ممتاز جداً',second:'ممتاز',third:'جيد جداً',fourth:'جيد','5th':'مقبول',reject:'مرفوض'};
-      const GRADE_C = {first:'var(--em)',second:'var(--cyan)',third:'var(--blue)',fourth:'var(--gold)','5th':'var(--amber)',reject:'var(--red)'};
+      const GRADE_C  = {first:'var(--em)',second:'var(--cyan)',third:'var(--blue)',fourth:'var(--gold)','5th':'var(--amber)',reject:'var(--red)'};
 
       const tw = _('combined-table-wrap');
       if (!tw) return;
-
       if (!products.length) {
         tw.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3)">لا توجد بيانات تطابق الفلتر المحدد</div>';
         return;
       }
 
-      // Group separator rows
-      const groupOrder = ['Honey Automation','Honey Manual','Manual','Oil Semi Automation','External','external','TEA Automation','NA'];
-      const groupedProducts = {};
+      // Group by hall production group
+      const groups = {};
       products.forEach(p => {
-        const g = p.group||'NA';
-        if (!groupedProducts[g]) groupedProducts[g] = [];
-        groupedProducts[g].push(p);
+        const g = p.group || '—';
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(p);
       });
-      const orderedGroups = groupOrder.filter(g => groupedProducts[g]);
-      Object.keys(groupedProducts).filter(g => !orderedGroups.includes(g)).forEach(g => orderedGroups.push(g));
 
       let rows = '';
-      orderedGroups.forEach(grpKey => {
-        const grpProds = groupedProducts[grpKey];
-        const grpTotal = grpProds.reduce((a,p)=>a+p.totalProd,0);
-        const grpRet = grpProds.reduce((a,p)=>a+(retMap[p.barcode||p.product]||0),0);
-        const grpRetRate = grpTotal>0&&grpRet>0 ? (grpRet/grpTotal*100).toFixed(1) : '—';
-        rows += `<tr style="background:var(--bg4)">
-          <td colspan="14" style="padding:6px 10px;font-size:11px;font-weight:800;color:var(--gold)">
-            📂 ${grpKey} — إنتاج: ${grpTotal.toLocaleString('ar-EG')} | مرتجعات: ${grpRet} | نسبة: ${grpRetRate}${grpRetRate!=='—'?'%':''}
-          </td>
-        </tr>`;
-        grpProds.forEach(p => {
-          const avgSig = p.sigmas.length ? Math.round(p.sigmas.reduce((a,b)=>a+b)/p.sigmas.length) : null;
-          const sigC = avgSig!=null ? (SIGMA_C[avgSig]||'var(--txt2)') : 'var(--txt3)';
-          const gradeCount = {}; p.grades.forEach(g => gradeCount[g]=(gradeCount[g]||0)+1);
-          const bestGrade = p.grades.length ? Object.entries(gradeCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
-          const ret = retMap[p.barcode||p.product]||0;
-          const retRate = p.totalProd>0&&ret>0 ? (ret/p.totalProd*100).toFixed(2) : null;
-          const retC = retRate ? (parseFloat(retRate)>5?'var(--red)':parseFloat(retRate)>2?'var(--amber)':'var(--em)') : 'var(--txt4)';
-          rows += `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-            <td style="padding:6px 8px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600" title="${p.product}">${p.product}</td>
-            <td style="padding:6px;text-align:center;font-size:10px">${p.hall1Prod>0?`<span style="color:var(--cyan)">${p.hall1Prod.toLocaleString('ar-EG')}</span>`:'—'}</td>
-            <td style="padding:6px;text-align:center;font-size:10px">${p.hall2Prod>0?`<span style="color:var(--blue)">${p.hall2Prod.toLocaleString('ar-EG')}</span>`:'—'}</td>
-            <td style="padding:6px;text-align:center;font-weight:800;color:var(--cyan);font-size:11px">${p.totalProd.toLocaleString('ar-EG')}</td>
-            <td style="padding:6px;text-align:center;font-size:10px">${p.runs}</td>
-            <td style="padding:6px;text-align:center;color:${p.defA>0?'var(--red)':'var(--txt4)'};font-weight:${p.defA>0?700:400};font-size:10px">${p.defA||'—'}</td>
-            <td style="padding:6px;text-align:center;color:${p.defB>0?'var(--orange)':'var(--txt4)'};font-size:10px">${p.defB||'—'}</td>
-            <td style="padding:6px;text-align:center;color:${p.defC>0?'var(--amber)':'var(--txt4)'};font-size:10px">${p.defC||'—'}</td>
-            <td style="padding:6px;text-align:center;color:${p.defD>0?'var(--gold)':'var(--txt4)'};font-size:10px">${p.defD||'—'}</td>
-            <td style="padding:6px;text-align:center;color:${p.rework>0?'var(--violet)':'var(--txt4)'};font-size:10px">${p.rework||'—'}</td>
-            <td style="padding:6px;text-align:center;font-weight:800;color:${sigC};font-size:10px">${avgSig!=null?avgSig+' σ':'—'}</td>
-            <td style="padding:6px;text-align:center;font-size:9px;color:${bestGrade?(GRADE_C[bestGrade]||'var(--txt2)'):'var(--txt4)'};font-weight:700">${bestGrade?(GRADE_AR[bestGrade]||bestGrade):'—'}</td>
-            <td style="padding:6px;text-align:center;font-weight:800;color:${retC};font-size:10px">${ret>0?ret:'—'}</td>
-            <td style="padding:6px;text-align:center;font-weight:800;color:${retC};font-size:10px">${retRate?retRate+'%':'—'}</td>
+      Object.entries(groups).sort((a,b)=>b[1].reduce((x,p)=>x+p.totalProd,0)-a[1].reduce((x,p)=>x+p.totalProd,0))
+        .forEach(([grpName, grpProds]) => {
+          const grpTotProd = grpProds.reduce((a,p)=>a+p.totalProd,0);
+          const grpTotRet  = grpProds.reduce((a,p)=>a+p.retQty,0);
+          const grpRetRate = grpTotProd>0&&grpTotRet>0?(grpTotRet/grpTotProd*100).toFixed(1):'—';
+          const grpRC = grpRetRate==='—'?'var(--txt4)':parseFloat(grpRetRate)>5?'var(--red)':parseFloat(grpRetRate)>2?'var(--amber)':'var(--em)';
+
+          rows += `<tr style="background:var(--bg4)">
+            <td colspan="14" style="padding:6px 10px;font-size:11px;font-weight:800;color:var(--gold)">
+              📂 ${grpName}
+              <span style="margin-right:12px;color:var(--cyan)">إنتاج: ${grpTotProd.toLocaleString('ar-EG')}</span>
+              <span style="color:${grpRC}">↩ مرتجعات: ${grpTotRet>0?grpTotRet.toLocaleString('ar-EG'):'—'} ${grpRetRate!=='—'?'('+grpRetRate+'%)':''}</span>
+            </td>
+          </tr>`;
+
+          grpProds.forEach(p => {
+            const avgSigV = p.sigmas.length?Math.round(p.sigmas.reduce((a,b)=>a+b)/p.sigmas.length):null;
+            const sigC    = avgSigV!=null?(SIGMA_C[avgSigV]||'var(--txt2)'):'var(--txt3)';
+            const gc={}; p.grades.forEach(g=>gc[g]=(gc[g]||0)+1);
+            const bg = p.grades.length?Object.entries(gc).sort((a,b)=>b[1]-a[1])[0][0]:null;
+            const retQty  = p.retQty;
+            const retRate = p.retRate;
+            const retC    = retRate?(parseFloat(retRate)>5?'var(--red)':parseFloat(retRate)>2?'var(--amber)':'var(--em)'):'var(--txt4)';
+
+            // Monthly return breakdown under product name
+            const mLines = Object.entries(p.retByMonth).sort((a,b)=>a[0].localeCompare(b[0]))
+              .map(([m,q])=>{
+                const [y,mo]=m.split('-');
+                const prodM = p.prodByMonth[m]||0;
+                const rt = prodM>0?(q/prodM*100).toFixed(1):'—';
+                return `${MN_SHORT?.[+mo-1]||mo}${y.slice(2)}:${q}${rt!=='—'?'('+rt+'%)':''}`;
+              }).join(' · ');
+
+            rows += `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+              <td style="padding:6px 8px;max-width:170px;font-size:11px;font-weight:600">
+                <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.product}">${p.product}</div>
+                ${mLines?`<div style="font-size:8px;color:var(--txt4);margin-top:2px">↩ ${mLines}</div>`:''}
+              </td>
+              <td style="padding:6px 5px;text-align:center;font-size:10px">${p.hall1Prod>0?`<span style="color:var(--cyan);font-weight:700">${p.hall1Prod.toLocaleString('ar-EG')}</span>`:'—'}</td>
+              <td style="padding:6px 5px;text-align:center;font-size:10px">${p.hall2Prod>0?`<span style="color:var(--blue);font-weight:700">${p.hall2Prod.toLocaleString('ar-EG')}</span>`:'—'}</td>
+              <td style="padding:6px 5px;text-align:center;font-weight:800;color:var(--cyan);font-size:11px">${p.totalProd.toLocaleString('ar-EG')}</td>
+              <td style="padding:6px 5px;text-align:center;font-size:10px">${p.runs}</td>
+              <td style="padding:6px 5px;text-align:center;color:${p.defA>0?'var(--red)':'var(--txt4)'};font-weight:${p.defA>0?700:400};font-size:10px">${p.defA||'—'}</td>
+              <td style="padding:6px 5px;text-align:center;color:${p.defB>0?'var(--orange)':'var(--txt4)'};font-size:10px">${p.defB||'—'}</td>
+              <td style="padding:6px 5px;text-align:center;color:${p.defC>0?'var(--amber)':'var(--txt4)'};font-size:10px">${p.defC||'—'}</td>
+              <td style="padding:6px 5px;text-align:center;color:${p.defD>0?'var(--gold)':'var(--txt4)'};font-size:10px">${p.defD||'—'}</td>
+              <td style="padding:6px 5px;text-align:center;color:${p.rework>0?'var(--violet)':'var(--txt4)'};font-size:10px">${p.rework||'—'}</td>
+              <td style="padding:6px 5px;text-align:center;font-weight:800;color:${sigC};font-size:10px">${avgSigV!=null?avgSigV+' σ':'—'}</td>
+              <td style="padding:6px 5px;text-align:center;font-size:9px;color:${bg?(GRADE_C[bg]||'var(--txt2)'):'var(--txt4)'};font-weight:700">${bg?(GRADE_AR[bg]||bg):'—'}</td>
+              <td style="padding:6px 5px;text-align:center;font-weight:900;font-size:13px;color:${retQty>0?retC:'var(--txt3)'}">
+                ${retQty>0?retQty.toLocaleString('ar-EG'):'—'}
+              </td>
+              <td style="padding:6px 5px;text-align:center;font-weight:900;font-size:12px;color:${retC}">
+                ${retRate?`<span class="rate-chip ${parseFloat(retRate)>5?'rate-bad':parseFloat(retRate)>2?'rate-warn':'rate-good'}">${retRate}%</span>`:'—'}
+              </td>
+            </tr>`;
+          });
+
+          // Group subtotal row
+          rows += `<tr style="background:rgba(255,200,0,.06);border-top:1px solid var(--border2)">
+            <td style="padding:6px 8px;font-weight:800;color:var(--gold);font-size:10.5px">📊 إجمالي ${grpName}</td>
+            <td style="text-align:center;padding:6px;color:var(--cyan);font-weight:700">${grpProds.reduce((a,p)=>a+p.hall1Prod,0)||'—'}</td>
+            <td style="text-align:center;padding:6px;color:var(--blue);font-weight:700">${grpProds.reduce((a,p)=>a+p.hall2Prod,0)||'—'}</td>
+            <td style="text-align:center;padding:6px;color:var(--cyan);font-weight:900;font-size:12px">${grpTotProd.toLocaleString('ar-EG')}</td>
+            <td style="text-align:center;padding:6px">${grpProds.reduce((a,p)=>a+p.runs,0)}</td>
+            <td colspan="6"></td>
+            <td style="text-align:center;padding:6px;font-weight:900;color:${grpTotRet>0?grpRC:'var(--txt3)'};font-size:12px">${grpTotRet>0?grpTotRet.toLocaleString('ar-EG'):'—'}</td>
+            <td style="text-align:center;padding:6px">${grpRetRate!=='—'?`<span class="rate-chip ${parseFloat(grpRetRate)>5?'rate-bad':parseFloat(grpRetRate)>2?'rate-warn':'rate-good'}">${grpRetRate}%</span>`:'—'}</td>
           </tr>`;
         });
-      });
 
-      tw.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead><tr style="background:var(--bg4);color:var(--txt2)">
-          <th style="padding:7px 8px;text-align:right;border-bottom:1px solid var(--border)">المنتج</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--cyan)">🏭 المصرية</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--blue)">🏭 المتخصص</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الإجمالي</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">تشغيلات</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🔴 A</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟠 B</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟡 C</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟢 D</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">Rework</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">σ</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الجودة</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">مرتجعات</th>
-          <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">نسبة المرتجع</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+      // Grand total row
+      const finalRetC = gtRetRate==='—'?'var(--txt3)':parseFloat(gtRetRate)>5?'var(--red)':parseFloat(gtRetRate)>2?'var(--amber)':'var(--em)';
+      rows += `<tr style="background:var(--bg4);font-weight:900;border-top:3px solid var(--border2)">
+        <td style="padding:8px;color:var(--gold);font-size:12px">🏆 الإجمالي الكلي</td>
+        <td style="text-align:center;padding:8px;color:var(--cyan)">${products.reduce((a,p)=>a+p.hall1Prod,0).toLocaleString('ar-EG')}</td>
+        <td style="text-align:center;padding:8px;color:var(--blue)">${products.reduce((a,p)=>a+p.hall2Prod,0).toLocaleString('ar-EG')}</td>
+        <td style="text-align:center;padding:8px;color:var(--cyan);font-size:14px">${gtProd.toLocaleString('ar-EG')}</td>
+        <td style="text-align:center;padding:8px">${filtered.length}</td>
+        <td colspan="6"></td>
+        <td style="text-align:center;padding:8px;color:${gtRet>0?'var(--red)':'var(--txt3)'};font-size:14px">${gtRet>0?gtRet.toLocaleString('ar-EG'):'—'}</td>
+        <td style="text-align:center;padding:8px">${gtRetRate!=='—'?`<span class="rate-chip ${parseFloat(gtRetRate)>5?'rate-bad':parseFloat(gtRetRate)>2?'rate-warn':'rate-good'}">${gtRetRate}%</span>`:'—'}</td>
+      </tr>`;
+
+      tw.innerHTML = `
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:900px">
+          <thead><tr style="background:var(--bg4);color:var(--txt2)">
+            <th style="padding:7px 8px;text-align:right;border-bottom:1px solid var(--border);min-width:160px">المنتج</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--cyan)">🏭 المصرية</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--blue)">🏭 المتخصص</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الإجمالي</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">تشغيلات</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🔴 A</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟠 B</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟡 C</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🟢 D</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">Rework</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">σ</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الجودة</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);background:rgba(239,68,68,.07);color:var(--red2);min-width:70px">↩ مرتجع</th>
+            <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);background:rgba(239,68,68,.07);color:var(--red2);min-width:70px">نسبة ↩</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <div style="margin-top:8px;font-size:9px;color:var(--txt4)">
+          💡 نسبة المرتجع = مرتجعات نفس شهر الإنتاج ÷ إجمالي إنتاج الصنف في نفس الشهر
+        </div>`;
     }
 
     function renderHall(hallKey) {
@@ -6430,37 +6571,47 @@
         </div>`}
       `;
 
-      // Get unique groups in priority order
-      const allGroups = [...new Set(recs.map(r=>r.group))];
-      const orderedGroups = PROD_GROUPS.filter(g => allGroups.some(ag => ag.toLowerCase().trim() === g.key.toLowerCase().trim()))
-        .map(g => g.key);
-      allGroups.filter(g => !orderedGroups.includes(g)).forEach(g => orderedGroups.push(g));
+      // ── Merge records into 2 main categories: auto / manual / external ──
+      const catMap = { auto: [], manual: [], external: [] };
+      recs.forEach(r => {
+        const cat = normalizeHallGroup(r.group||'');
+        (catMap[cat]||catMap.manual).push(r);
+      });
+      const catDefs = [
+        { key:'auto',     label:'🤖 أوتوماتيك', color:'var(--cyan)'  },
+        { key:'manual',   label:'👐 يدوي',       color:'var(--gold)'  },
+        { key:'external', label:'📦 خارجي',      color:'var(--amber)' },
+      ].filter(c => catMap[c.key]?.length > 0);
 
-      if (!_activeGroup[hallKey] || !orderedGroups.includes(_activeGroup[hallKey])) {
-        _activeGroup[hallKey] = orderedGroups[0];
+      if (!_activeGroup[hallKey] || !catDefs.find(c=>c.key===_activeGroup[hallKey])) {
+        _activeGroup[hallKey] = catDefs[0]?.key || 'manual';
       }
 
       const tabBtnsEl = _(`${hallKey}-group-tab-btns`);
       if (tabBtnsEl) {
-        tabBtnsEl.innerHTML = orderedGroups.map(grp => {
-          const gDef = PROD_GROUPS.find(g => g.key.toLowerCase().trim() === grp.toLowerCase().trim());
-          const label = gDef ? gDef.label : grp;
-          const grpRecs = recs.filter(r => r.group.toLowerCase().trim() === grp.toLowerCase().trim());
-          // Show return count per group tab
-          const grpBarcodes = new Set(grpRecs.map(r=>String(r.barcode||'').trim()));
-          const grpRet = S.records.filter(r=>grpBarcodes.has(String(r.barcode||'').trim())).reduce((a,r)=>a+(r.qty||1),0);
-          const active = _activeGroup[hallKey] === grp;
-          return `<button class="btn ${active?'btn-gold':'btn-ghost'}" style="font-size:11px"
-            onclick="_activeGroup['${hallKey}']='${grp.replace(/'/g,"\'")}';renderHall('${hallKey}')"
-          >${label} <span style="font-size:10px;opacity:.7">${grpRecs.length}</span>${grpRet>0?` <span style="font-size:9px;color:${active?'var(--bg)':'var(--red2)'}">↩${grpRet}</span>`:''}</button>`;
+        tabBtnsEl.innerHTML = catDefs.map(cat => {
+          const cRecs = catMap[cat.key];
+          const cBarcodes = new Set(cRecs.map(r=>String(r.barcode||'').trim().toLowerCase()));
+          const cNames    = new Set(cRecs.map(r=>(r.product||'').toLowerCase()));
+          const cRet = S.records.filter(r=>{
+            const rbc=String(r.barcode||'').trim().toLowerCase();
+            const rnm=(r.product||'').toLowerCase();
+            return cBarcodes.has(rbc)||cNames.has(rnm);
+          }).reduce((a,r)=>a+(r.qty||1),0);
+          const active = _activeGroup[hallKey] === cat.key;
+          return `<button class="btn ${active?'btn-gold':'btn-ghost'}" style="font-size:12px;gap:5px"
+            onclick="_activeGroup['${hallKey}']='${cat.key}';renderHall('${hallKey}')">
+            ${cat.label}
+            <span style="font-size:10px;opacity:.7;background:rgba(255,255,255,.1);border-radius:8px;padding:1px 6px">${cRecs.length}</span>
+            ${cRet>0?`<span style="font-size:10px;color:${active?'var(--bg)':'var(--red2)'}">↩${cRet}</span>`:''}
+          </button>`;
         }).join('');
       }
 
       const contentEl = _(`${hallKey}-group-content`);
       if (contentEl) {
-        const activeGrp = _activeGroup[hallKey];
-        const grpRecs = recs.filter(r => r.group.toLowerCase().trim() === activeGrp.toLowerCase().trim());
-        contentEl.innerHTML = renderGroupProductTable(grpRecs, hall, activeGrp);
+        const activeCat = catDefs.find(c=>c.key===_activeGroup[hallKey]) || catDefs[0];
+        if (activeCat) contentEl.innerHTML = renderGroupProductTable(catMap[activeCat.key], hall, activeCat.label);
       }
 
       renderNCR(hallKey, hall.ncrs || []);
@@ -6479,19 +6630,20 @@
       return total;
     }
 
-    /* Match returns by barcode OR product name. prodDateMonth filters by production month. */
-    function computeProductReturns(barcodeOrName, prodDateMonth) {
+    function computeProductReturns(barcode, prodDateMonth) {
+      // Match returns by barcode + production date (تاريخ الانتاج in returns = prodDate)
       let qty = 0;
-      const q = String(barcodeOrName||'').trim().toLowerCase();
       S.records.forEach(r => {
-        const rbc = String(r.barcode||'').trim();
-        const rnm = (r.product||'').toLowerCase();
-        if (rbc !== barcodeOrName && rnm !== q) return;
-        if (prodDateMonth) {
-          const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
-          if (pm !== prodDateMonth) return;
+        const bc = String(r.barcode||'').trim();
+        if (bc === barcode) {
+          // Match by prodDate month if available, else just by barcode
+          if (prodDateMonth) {
+            const rProdDate = r.prodDate || r.date;
+            if (rProdDate && rProdDate.slice(0,7) === prodDateMonth) qty += (r.qty||1);
+          } else {
+            qty += (r.qty||1);
+          }
         }
-        qty += (r.qty||1);
       });
       return qty;
     }
@@ -6499,7 +6651,7 @@
     function renderGroupProductTable(grpRecs, hall, activeGrp) {
       if (!grpRecs.length) return '<div style="color:var(--txt3);padding:20px;text-align:center">لا توجد تشغيلات لهذه المجموعة</div>';
 
-      // ── Aggregate by product ──────────────────────────────────────────
+      // ── Aggregate IPC records by product ─────────────────────────────
       const prodMap = {};
       grpRecs.forEach(r => {
         const key = r.barcode || r.product;
@@ -6510,82 +6662,74 @@
           sigmas:[], grades:[], prodByMonth:{}
         };
         const p = prodMap[key];
-        p.runs++;
-        p.totalProd    += r.actualProd;
-        p.totalSample  += r.totalSample;
+        p.runs++; p.totalProd+=r.actualProd; p.totalSample+=r.totalSample;
         p.defA+=r.defA; p.defB+=r.defB; p.defC+=r.defC; p.defD+=r.defD;
-        p.totalDef     += r.totalDef;
-        p.rework       += r.rework;
+        p.totalDef+=r.totalDef; p.rework+=r.rework;
         if (r.sigma!=null) p.sigmas.push(r.sigma);
         if (r.grade) p.grades.push(r.grade);
-        const m = (r.prodDate||r.opDate||'').slice(0,7);
-        if (m) p.prodByMonth[m] = (p.prodByMonth[m]||0) + r.actualProd;
+        const m=(r.prodDate||r.opDate||'').slice(0,7);
+        if (m) p.prodByMonth[m]=(p.prodByMonth[m]||0)+r.actualProd;
       });
       const products = Object.values(prodMap).sort((a,b)=>b.totalProd-a.totalProd);
 
-      // ── Group-level stats ─────────────────────────────────────────────
-      const grpTotal   = grpRecs.reduce((a,r)=>a+r.actualProd,0);
-      const grpDef     = grpRecs.reduce((a,r)=>a+r.totalDef,0);
-      const grpSamp    = grpRecs.reduce((a,r)=>a+r.totalSample,0);
-      const grpRework  = grpRecs.reduce((a,r)=>a+r.rework,0);
-      const grpSigmas  = grpRecs.filter(r=>r.sigma!=null).map(r=>r.sigma);
-      const grpAvgSig  = grpSigmas.length ? (grpSigmas.reduce((a,b)=>a+b)/grpSigmas.length).toFixed(1) : '—';
-      const grpDefRate = grpSamp>0 ? (grpDef/grpSamp*100).toFixed(2) : '—';
+      // ── Group-level IPC stats ─────────────────────────────────────────
+      const grpTotal  = grpRecs.reduce((a,r)=>a+r.actualProd,0);
+      const grpDef    = grpRecs.reduce((a,r)=>a+r.totalDef,0);
+      const grpSamp   = grpRecs.reduce((a,r)=>a+r.totalSample,0);
+      const grpRework = grpRecs.reduce((a,r)=>a+r.rework,0);
+      const grpSigmas = grpRecs.filter(r=>r.sigma!=null).map(r=>r.sigma);
+      const grpAvgSig = grpSigmas.length?(grpSigmas.reduce((a,b)=>a+b)/grpSigmas.length).toFixed(1):'—';
+      const grpDefRate= grpSamp>0?(grpDef/grpSamp*100).toFixed(2):'—';
 
       // ── Group returns: match by barcode OR product name ───────────────
       const barcodeSet = new Set(products.map(p=>p.barcode.toLowerCase()).filter(Boolean));
       const productSet = new Set(products.map(p=>(p.product||'').toLowerCase()).filter(Boolean));
       let grpReturns = 0;
-      const grpRetByMonth = {}; // prodMonth → qty
+      const grpRetByMonth = {};
       S.records.forEach(r => {
         const rbc = String(r.barcode||'').trim().toLowerCase();
         const rnm = (r.product||'').toLowerCase();
         if (!barcodeSet.has(rbc) && !productSet.has(rnm)) return;
         const qty = r.qty||1;
         grpReturns += qty;
-        // Key by prodDate month (accurate)
         const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
-        if (pm) grpRetByMonth[pm] = (grpRetByMonth[pm]||0) + qty;
+        if (pm) grpRetByMonth[pm]=(grpRetByMonth[pm]||0)+qty;
       });
-      const grpRetRate   = grpTotal>0 ? (grpReturns/grpTotal*100).toFixed(2) : '—';
-      const grpRetRatePF = parseFloat(grpRetRate)||0;
-      const grpRetCls    = grpRetRatePF>5?'rate-bad':grpRetRatePF>2?'rate-warn':'rate-good';
+      const grpRetRate = grpTotal>0?(grpReturns/grpTotal*100).toFixed(2):'—';
+      const grpRetPF   = parseFloat(grpRetRate)||0;
+      const grpRetCls  = grpRetPF>5?'rate-bad':grpRetPF>2?'rate-warn':'rate-good';
 
-      // ── Group KPI strip ───────────────────────────────────────────────
-      const kpiCard = (val, lbl, clr) =>
-        `<div style="background:var(--bg4);border-radius:7px;padding:8px;text-align:center">
-          <div style="font-size:16px;font-weight:900;color:${clr}">${val}</div>
-          <div style="font-size:9px;color:var(--txt3)">${lbl}</div>
-        </div>`;
+      // ── KPI strip ─────────────────────────────────────────────────────
+      const kpi = (v,l,c) => `<div style="background:var(--bg4);border-radius:7px;padding:8px 6px;text-align:center">
+        <div style="font-size:15px;font-weight:900;color:${c}">${v}</div>
+        <div style="font-size:9px;color:var(--txt3)">${l}</div></div>`;
 
       let html = `<div class="card" style="padding:12px;margin-bottom:10px">
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px">
-          ${kpiCard(grpTotal.toLocaleString('ar-EG'), 'إجمالي الإنتاج', 'var(--cyan)')}
-          ${kpiCard(grpAvgSig+' σ', 'متوسط سيجما', 'var(--em)')}
-          ${kpiCard(grpDefRate+'%', 'معدل العيوب', 'var(--amber)')}
-          ${kpiCard(grpRework.toLocaleString('ar-EG'), 'إعادة تشغيل', 'var(--gold)')}
-          ${kpiCard(grpReturns.toLocaleString('ar-EG'), '↩ كمية المرتجعات', grpReturns>0?'var(--red)':'var(--txt3)')}
-          ${kpiCard(grpRetRate!=='—'?grpRetRate+'%':'—', '📊 نسبة المرتجعات', grpRetRatePF>5?'var(--red)':grpRetRatePF>2?'var(--amber)':'var(--em)')}
+          ${kpi(grpTotal.toLocaleString('ar-EG'),'🏭 الإنتاج','var(--cyan)')}
+          ${kpi(grpAvgSig+' σ','مستوى سيجما','var(--em)')}
+          ${kpi(grpDefRate+'%','معدل العيوب','var(--amber)')}
+          ${kpi(grpRework.toLocaleString('ar-EG'),'Rework','var(--gold)')}
+          ${kpi(grpReturns>0?grpReturns.toLocaleString('ar-EG'):'—','↩ المرتجعات',grpReturns>0?'var(--red)':'var(--txt3)')}
+          ${kpi(grpRetRate!=='—'?grpRetRate+'%':'—','📊 نسبة المرتجع',grpRetPF>5?'var(--red)':grpRetPF>2?'var(--amber)':'var(--em)')}
         </div>
 
-        <!-- Monthly returns for this group -->
+        <!-- Monthly returns strip -->
         ${Object.keys(grpRetByMonth).length ? `
-        <div style="margin-bottom:12px;padding:8px 10px;background:var(--bg4);border-radius:8px">
-          <div style="font-size:10px;color:var(--txt3);font-weight:700;margin-bottom:7px">📅 المرتجعات الشهرية للمجموعة (حسب شهر الإنتاج)</div>
-          <div style="display:flex;gap:7px;flex-wrap:wrap">
-            ${Object.entries(grpRetByMonth).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,retQ])=>{
-              const [y,mo]=m.split('-');
-              const prodQ = grpRecs.filter(r=>(r.prodDate||r.opDate||'').startsWith(m)).reduce((a,r)=>a+r.actualProd,0);
-              const rt = prodQ>0?(retQ/prodQ*100).toFixed(1):null;
-              const rtC = rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'var(--txt4)';
-              return `<div style="background:var(--bg3);border-radius:6px;padding:7px 10px;text-align:center;min-width:75px;border-top:2px solid ${rt?rtC:'var(--border)'}">
-                <div style="font-size:9px;color:var(--txt3)">${MN_SHORT[+mo-1]} ${y}</div>
-                <div style="font-size:14px;font-weight:900;color:var(--red)">↩ ${retQ}</div>
-                ${prodQ?`<div style="font-size:9px;color:var(--cyan)">🏭 ${prodQ.toLocaleString('ar-EG')}</div>`:''}
-                ${rt?`<div style="font-size:11px;font-weight:900;color:${rtC}">${rt}%</div>`:'<div style="font-size:9px;color:var(--txt4)">—</div>'}
-              </div>`;
-            }).join('')}
-          </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;padding:8px;background:var(--bg4);border-radius:8px">
+          <div style="font-size:9px;color:var(--txt3);font-weight:700;width:100%;margin-bottom:4px">📅 المرتجعات الشهرية (حسب شهر الإنتاج)</div>
+          ${Object.entries(grpRetByMonth).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,retQ])=>{
+            const [y,mo]=m.split('-');
+            const prodQ=grpRecs.filter(r=>(r.prodDate||r.opDate||'').startsWith(m)).reduce((a,r)=>a+r.actualProd,0);
+            const rt=prodQ>0?(retQ/prodQ*100).toFixed(1):null;
+            const rc=rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'var(--txt4)';
+            return `<div style="background:var(--bg3);border-radius:6px;padding:6px 9px;text-align:center;min-width:70px;border-top:2px solid ${rt?rc:'var(--border)'}">
+              <div style="font-size:9px;color:var(--txt3)">${MN_SHORT[+mo-1]} ${y}</div>
+              <div style="font-size:13px;font-weight:900;color:var(--red)">↩${retQ}</div>
+              ${prodQ?`<div style="font-size:8.5px;color:var(--cyan)">🏭${prodQ.toLocaleString('ar-EG')}</div>`:''}
+              ${rt?`<div style="font-size:11px;font-weight:900;color:${rc}">${rt}%</div>`:'<div style="font-size:9px;color:var(--txt4)">—</div>'}
+            </div>`;
+          }).join('')}
         </div>` : ''}
 
         <!-- Product detail table -->
@@ -6593,57 +6737,53 @@
         <table style="width:100%;border-collapse:collapse;font-size:10.5px">
           <thead>
             <tr style="background:var(--bg4);color:var(--txt2)">
-              <th style="padding:7px 8px;text-align:right;border-bottom:1px solid var(--border)">المنتج</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🏭 الإنتاج</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">تشغيلات</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="عيوب خطيرة">🔴A</th>
+              <th style="padding:7px 8px;text-align:right;border-bottom:1px solid var(--border);min-width:160px">المنتج</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">🏭 إنتاج</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">تشغيل</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="عيب خطير">🔴A</th>
               <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="تسييل/زجاج">🟠B</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="استيكرات">🟡C</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="استيكر">🟡C</th>
               <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)" title="كرتون">🟢D</th>
               <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">Rework</th>
               <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">σ</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">الجودة</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--red2)">↩ مرتجع</th>
-              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--red2)">نسبة ↩</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border)">جودة</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--red2);min-width:65px">↩ مرتجع</th>
+              <th style="padding:7px 5px;text-align:center;border-bottom:1px solid var(--border);color:var(--red2);min-width:60px">نسبة↩</th>
             </tr>
           </thead>
           <tbody>`;
 
       products.forEach(p => {
-        // Sigma + grade
-        const avgSig    = p.sigmas.length ? Math.round(p.sigmas.reduce((a,b)=>a+b)/p.sigmas.length) : null;
-        const sigColor  = avgSig!=null ? (SIGMA_COLORS[avgSig]||'var(--txt2)') : 'var(--txt3)';
-        const gradeCount= {}; p.grades.forEach(g=>gradeCount[g]=(gradeCount[g]||0)+1);
-        const bestGrade = p.grades.length ? Object.entries(gradeCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
-        const gradeColor= bestGrade?(GRADE_COLOR[bestGrade]||'var(--txt2)'):'var(--txt3)';
-        const gradeLabel= bestGrade?(GRADE_AR[bestGrade]||bestGrade):'—';
+        // Quality metrics
+        const avgSig   = p.sigmas.length?Math.round(p.sigmas.reduce((a,b)=>a+b)/p.sigmas.length):null;
+        const sigColor = avgSig!=null?(SIGMA_COLORS[avgSig]||'var(--txt2)'):'var(--txt3)';
+        const gradeCount={}; p.grades.forEach(g=>gradeCount[g]=(gradeCount[g]||0)+1);
+        const bestGrade= p.grades.length?Object.entries(gradeCount).sort((a,b)=>b[1]-a[1])[0][0]:null;
+        const gradeColor=bestGrade?(GRADE_COLOR[bestGrade]||'var(--txt2)'):'var(--txt3)';
+        const gradeLabel=bestGrade?(GRADE_AR[bestGrade]||bestGrade):'—';
 
-        // Returns for this product (barcode OR name, by prodDate month)
-        let retQty = 0;
-        const retByMonth = {};
-        const pbc = p.barcode.toLowerCase();
-        const pnm = (p.product||'').toLowerCase();
-        S.records.forEach(r => {
-          const rbc = String(r.barcode||'').trim().toLowerCase();
-          const rnm = (r.product||'').toLowerCase();
-          if (rbc !== pbc && rnm !== pnm) return;
-          const qty = r.qty||1;
-          retQty += qty;
-          const pm = r.prodDate ? r.prodDate.slice(0,7) : (r.date ? r.date.slice(0,7) : null);
-          if (pm) retByMonth[pm] = (retByMonth[pm]||0) + qty;
+        // Returns for this product (barcode OR product name match, by prodMonth)
+        let retQty=0; const retByMonth={};
+        const pbc=p.barcode.toLowerCase(); const pnm=(p.product||'').toLowerCase();
+        S.records.forEach(r=>{
+          const rbc=String(r.barcode||'').trim().toLowerCase();
+          const rnm=(r.product||'').toLowerCase();
+          if(rbc!==pbc&&rnm!==pnm) return;
+          const qty=r.qty||1; retQty+=qty;
+          const pm=r.prodDate?r.prodDate.slice(0,7):(r.date?r.date.slice(0,7):null);
+          if(pm) retByMonth[pm]=(retByMonth[pm]||0)+qty;
         });
 
-        const retRate  = p.totalProd>0&&retQty>0 ? (retQty/p.totalProd*100).toFixed(2) : null;
-        const retColor = retRate ? (parseFloat(retRate)>5?'var(--red)':parseFloat(retRate)>2?'var(--amber)':'var(--em)') : 'var(--txt3)';
+        const retRate = p.totalProd>0&&retQty>0?(retQty/p.totalProd*100).toFixed(2):null;
+        const retColor= retRate?(parseFloat(retRate)>5?'var(--red)':parseFloat(retRate)>2?'var(--amber)':'var(--em)'):'var(--txt3)';
 
-        // Per-month mini breakdown under product name
-        const monthLines = Object.entries(retByMonth).sort((a,b)=>a[0].localeCompare(b[0]))
-          .map(([m,q])=>{
-            const [y,mo]=m.split('-');
-            const pM=p.prodByMonth[m]||0;
-            const rt=pM>0?(q/pM*100).toFixed(1)+'%':'';
-            return `${MN_SHORT[+mo-1]}${y.slice(2)}:${q}${rt?'('+rt+')':''}`;
-          }).join(' · ');
+        // Per-month detail under product name: month:qty(rate%)
+        const monthLines = Object.entries(retByMonth).sort((a,b)=>a[0].localeCompare(b[0])).map(([m,q])=>{
+          const [y,mo]=m.split('-');
+          const pM=p.prodByMonth[m]||0;
+          const rt=pM>0?'('+(q/pM*100).toFixed(1)+'%)':'';
+          return `${MN_SHORT[+mo-1]}${y.slice(2)}:${q}${rt}`;
+        }).join(' · ');
 
         html += `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
           <td style="padding:6px 8px;font-weight:600;max-width:180px">
@@ -6653,25 +6793,25 @@
           <td style="padding:6px 5px;text-align:center;font-weight:700;color:var(--cyan)">${p.totalProd.toLocaleString('ar-EG')}</td>
           <td style="padding:6px 5px;text-align:center;color:var(--txt2)">${p.runs}</td>
           <td style="padding:6px 5px;text-align:center;color:${p.defA>0?'var(--red)':'var(--txt3)'};font-weight:${p.defA>0?700:400}">${p.defA||'—'}</td>
-          <td style="padding:6px 5px;text-align:center;color:${p.defB>0?'var(--orange)':'var(--txt3)'};font-weight:${p.defB>0?700:400}">${p.defB||'—'}</td>
-          <td style="padding:6px 5px;text-align:center;color:${p.defC>0?'var(--amber)':'var(--txt3)'};font-weight:${p.defC>0?700:400}">${p.defC||'—'}</td>
-          <td style="padding:6px 5px;text-align:center;color:${p.defD>0?'var(--gold)':'var(--txt3)'};font-weight:${p.defD>0?700:400}">${p.defD||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defB>0?'var(--orange)':'var(--txt3)'}">${p.defB||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defC>0?'var(--amber)':'var(--txt3)'}">${p.defC||'—'}</td>
+          <td style="padding:6px 5px;text-align:center;color:${p.defD>0?'var(--gold)':'var(--txt3)'}">${p.defD||'—'}</td>
           <td style="padding:6px 5px;text-align:center;color:${p.rework>0?'var(--violet)':'var(--txt3)'}">${p.rework||'—'}</td>
           <td style="padding:6px 5px;text-align:center;font-weight:800;color:${sigColor}">${avgSig!=null?avgSig+' σ':'—'}</td>
           <td style="padding:6px 5px;text-align:center;font-size:10px;color:${gradeColor};font-weight:700">${gradeLabel}</td>
-          <td style="padding:6px 5px;text-align:center;font-weight:800;font-size:12px;color:${retQty>0?retColor:'var(--txt3)'}">
+          <td style="padding:6px 5px;text-align:center;font-weight:900;font-size:13px;color:${retQty>0?retColor:'var(--txt3)'}">
             ${retQty>0?retQty.toLocaleString('ar-EG'):'—'}
           </td>
-          <td style="padding:6px 5px;text-align:center;font-weight:900;font-size:12px;color:${retColor}">
+          <td style="padding:6px 5px;text-align:center;font-weight:900;font-size:13px;color:${retColor}">
             ${retRate?retRate+'%':'—'}
           </td>
         </tr>`;
       });
 
       // Group totals row
-      html += `<tr style="background:var(--bg4);font-weight:900;border-top:2px solid var(--border2)">
-        <td style="padding:7px 8px;color:var(--gold)">📊 إجمالي المجموعة</td>
-        <td style="text-align:center;padding:7px;color:var(--cyan);font-size:13px">${grpTotal.toLocaleString('ar-EG')}</td>
+      html += `<tr style="background:var(--bg4);border-top:2px solid var(--border2)">
+        <td style="padding:7px 8px;font-weight:800;color:var(--gold)">📊 إجمالي المجموعة</td>
+        <td style="text-align:center;padding:7px;color:var(--cyan);font-weight:900;font-size:13px">${grpTotal.toLocaleString('ar-EG')}</td>
         <td style="text-align:center;padding:7px;color:var(--txt2)">${grpRecs.length}</td>
         <td colspan="6"></td>
         <td style="text-align:center;padding:7px;font-size:13px;font-weight:900;color:${grpReturns>0?'var(--red)':'var(--txt3)'}">
@@ -6683,14 +6823,10 @@
       </tr>
       </tbody></table></div>
 
-      <!-- Defect legend -->
       <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;font-size:9.5px;color:var(--txt3)">
-        <span>🔴 A = عيوب خطيرة (شوائب، زجاج، وزن) — وزن: 100</span>
-        <span>🟠 B = تسييل، زجاج، غطاء، استيكر — وزن: 50</span>
-        <span>🟡 C = استيكرات، كرتون — وزن: 10</span>
-        <span>🟢 D = كرتون خارجي — وزن: 1</span>
-      </div>
-      </div>`;
+        <span>🔴 A = عيوب خطيرة — وزن: 100</span><span>🟠 B = تسييل/زجاج — وزن: 50</span>
+        <span>🟡 C = استيكر/كرتون — وزن: 10</span><span>🟢 D = كرتون خارجي — وزن: 1</span>
+      </div></div>`;
 
       return html;
     }
@@ -6874,36 +7010,29 @@
     function classifyProduct(name, barcode) {
       const cacheKey = `${name}|${barcode}`;
       if (_classCache.has(cacheKey)) return _classCache.get(cacheKey);
-
       const cfg  = S.groupConfig || buildDefaultGroupConfig();
       const nm   = normStr(name||'').toLowerCase();
       const bc   = String(barcode||'').trim();
       const text = nm + ' ' + bc.toLowerCase();
-
-      // 0. Explicit barcode moves — highest priority
+      // 0. Explicit barcode moves
       for (const g of cfg) {
         if ((g.manualBarcodes||[]).some(b=>b===bc||b===nm))
-          { _cacheSet(_classCache, cacheKey, g.id); return g.id; }
+          { _cacheSet(_classCache,cacheKey,g.id); return g.id; }
       }
-      // 1. Manual name overrides
+      // 1. Manual overrides
       for (const g of cfg) {
-        if ((g.manualItems||[]).some(it=>{
-          const ni=normStr(it).toLowerCase();
-          return ni===nm||(bc&&ni===bc.toLowerCase());
-        })) { _cacheSet(_classCache, cacheKey, g.id); return g.id; }
+        if ((g.manualItems||[]).some(it=>{const ni=normStr(it).toLowerCase();return ni===nm||(bc&&ni===bc.toLowerCase());}))
+          { _cacheSet(_classCache,cacheKey,g.id); return g.id; }
       }
       // 2. Keyword auto-match
       for (const g of cfg.filter(g=>g.matchType!=='fallback')) {
         if (bc&&(g.excludedBarcodes||[]).includes(bc)) continue;
         if (nm&&(g.excludedBarcodes||[]).includes(nm)) continue;
         for (const kw of (g.keywords||[])) {
-          const hit = g.matchType==='fuzzy'
-            ? fuzzyContains(text,kw,g.fuzzyThresh||0.9)
-            : text.includes(normStr(kw).toLowerCase());
-          if (hit) { _cacheSet(_classCache, cacheKey, g.id); return g.id; }
+          const hit=g.matchType==='fuzzy'?fuzzyContains(text,kw,g.fuzzyThresh||0.9):text.includes(normStr(kw).toLowerCase());
+          if (hit) { _cacheSet(_classCache,cacheKey,g.id); return g.id; }
         }
       }
-      // 3. Fallback
       const fb=cfg.find(g=>g.matchType==='fallback');
       const res=fb?fb.id:'g_bartaman';
       _cacheSet(_classCache,cacheKey,res); return res;
@@ -7330,6 +7459,8 @@
       if (v > 0) S.monthlyProduction[gid][month] = v;
       else delete S.monthlyProduction[gid][month];
       save(true);
+      // re-render production tables dynamically
+      if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) renderProductionPage();
       // live update rate column
       const inp = _(`pi_${gid}`);
       if (inp) {
@@ -8422,7 +8553,7 @@
     }
 
     function getSpProd(gid) {
-      const ipc = {};
+      const ipc={};
       if (S.production&&S.production.halls) {
         Object.values(S.production.halls).forEach(h=>{
           if(!h||!h.records) return;
@@ -8447,11 +8578,57 @@
 
     /* Override getGroupStats to use SP filter */
     /* Helper: get production month for a return record */
-    /* Use prodDate when present. Fall back to return date as-is — never subtract a month. */
+    /* Get production month for a return record.
+       1. Use prodDate if present (exact, from returns file).
+       2. If no prodDate, find nearest month this product was produced in IPC data.
+       3. Fallback to return date as-is. */
     function getRecProdMonth(rec) {
       if (rec.prodDate && rec.prodDate.length >= 7) return rec.prodDate.slice(0, 7);
-      if (rec.date     && rec.date.length     >= 7) return rec.date.slice(0, 7);
+      // Try to find nearest IPC production month for this product
+      if (S.production && S.production.halls) {
+        const pbc = String(rec.barcode||'').trim().toLowerCase();
+        const pnm = (rec.product||'').toLowerCase();
+        const retMonth = rec.date ? rec.date.slice(0,7) : null;
+        const ipcMonths = [];
+        Object.values(S.production.halls).forEach(h => {
+          if (!h || !h.records) return;
+          h.records.forEach(r => {
+            const rbc = String(r.barcode||'').trim().toLowerCase();
+            const rnm = (r.product||'').toLowerCase();
+            if ((pbc && rbc === pbc) || (pnm && rnm === pnm)) {
+              const m = (r.prodDate||r.opDate||'').slice(0,7);
+              if (m) ipcMonths.push(m);
+            }
+          });
+        });
+        if (ipcMonths.length > 0 && retMonth) {
+          // Find closest month to return date
+          ipcMonths.sort();
+          let closest = ipcMonths[0];
+          let minDiff = Math.abs(retMonth.localeCompare(closest));
+          ipcMonths.forEach(m => {
+            const diff = Math.abs(retMonth > m ? retMonth.localeCompare(m) : m.localeCompare(retMonth));
+            // Simple string comparison works for YYYY-MM format
+            const d = retMonth >= m ? monthDiff(m, retMonth) : monthDiff(retMonth, m);
+            if (d < monthDiff(closest >= retMonth ? retMonth : closest, closest >= retMonth ? closest : retMonth)) closest = m;
+          });
+          // Sort and pick closest
+          const sorted = [...new Set(ipcMonths)].sort();
+          let best = sorted[sorted.length-1]; // default to most recent before return
+          for (let i = sorted.length-1; i >= 0; i--) {
+            if (sorted[i] <= retMonth) { best = sorted[i]; break; }
+          }
+          return best;
+        }
+        if (ipcMonths.length > 0) return [...new Set(ipcMonths)].sort()[ipcMonths.length-1];
+      }
+      if (rec.date && rec.date.length >= 7) return rec.date.slice(0, 7);
       return null;
+    }
+    function monthDiff(from, to) {
+      const [fy,fm] = from.split('-').map(Number);
+      const [ty,tm] = to.split('-').map(Number);
+      return Math.abs((ty-fy)*12 + (tm-fm));
     }
 
     /* Returns filtered by SP period — using PRODUCTION month (prodDate) not receipt date */
@@ -8508,31 +8685,28 @@
       const cfg  = S.groupConfig || buildDefaultGroupConfig();
       const MNF  = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-      // ── Returns per group per prodMonth ──────────────────────────────
-      const retMap   = {}; // gid → month → { qty, products:{name:qty} }
-      const retTotal = {}; // gid → total qty
-      getSpFilteredByProdMonth().forEach(r => {
-        const gid = classifyProduct(r.product||'',r.barcode||'');
-        const pm  = getRecProdMonth(r);
-        if (!gid || !pm) return;
-        if (!retMap[gid]) retMap[gid] = {};
-        if (!retMap[gid][pm]) retMap[gid][pm] = { qty:0, products:{} };
-        const qty = r.qty||1;
-        retMap[gid][pm].qty += qty;
-        retTotal[gid] = (retTotal[gid]||0) + qty;
-        const p = r.product||r.barcode||'?';
-        retMap[gid][pm].products[p] = (retMap[gid][pm].products[p]||0) + qty;
+      // Returns per group per prodMonth
+      const retMap={};
+      getSpFilteredByProdMonth().forEach(r=>{
+        const gid=classifyProduct(r.product||'',r.barcode||'');
+        const pm=getRecProdMonth(r); if(!pm||!gid) return;
+        if(!retMap[gid]) retMap[gid]={};
+        if(!retMap[gid][pm]) retMap[gid][pm]={qty:0,prods:{}};
+        const qty=r.qty||1;
+        retMap[gid][pm].qty+=qty;
+        const p=r.product||r.barcode||'?';
+        retMap[gid][pm].prods[p]=(retMap[gid][pm].prods[p]||0)+qty;
       });
 
-      // ── Production per group per month (IPC halls + manual merged) ───
-      const prodMap = {}; // gid → month → qty
-      cfg.forEach(g => {
-        prodMap[g.id] = {};
-        if (S.production&&S.production.halls) {
-          Object.values(S.production.halls).forEach(h => {
-            if (!h||!h.records) return;
-            h.records.forEach(r => {
-              if (classifyProduct(r.product||'',r.barcode||'')!==g.id) return;
+      // Production per group per month (IPC + manual)
+      const prodMap={};
+      cfg.forEach(g=>{
+        prodMap[g.id]={};
+        if(S.production&&S.production.halls){
+          Object.values(S.production.halls).forEach(h=>{
+            if(!h||!h.records) return;
+            h.records.forEach(r=>{
+              if(classifyProduct(r.product||'',r.barcode||'')!==g.id) return;
               const m=(r.prodDate||r.opDate||'').slice(0,7); if(!m) return;
               prodMap[g.id][m]=(prodMap[g.id][m]||0)+(r.actualProd||0);
             });
@@ -8541,13 +8715,13 @@
         Object.entries(S.monthlyProduction[g.id]||{}).forEach(([m,v])=>{prodMap[g.id][m]=v;});
       });
 
-      // ── Month list for current SP period ─────────────────────────────
-      const allM = new Set();
+      // Month list
+      const allM=new Set();
       cfg.forEach(g=>{
         Object.keys(retMap[g.id]||{}).forEach(m=>allM.add(m));
         Object.keys(prodMap[g.id]||{}).forEach(m=>allM.add(m));
       });
-      const months = [...allM].filter(m=>{
+      const months=[...allM].filter(m=>{
         if(SP.mode==='cumulative') return true;
         if(SP.mode==='monthly'&&SP.month) return m===SP.month;
         if(SP.mode==='yearly'&&SP.year) return m.startsWith(SP.year);
@@ -8556,57 +8730,40 @@
         return true;
       }).sort();
 
-      if (!months.length) {
-        area.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3)">لا توجد بيانات للفترة المختارة</div>';
-        return;
-      }
+      if(!months.length){area.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3)">لا توجد بيانات للفترة المختارة</div>';return;}
 
-      const active = cfg.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty||(prodMap[g.id]||{})[m]));
-      const missingProd = active.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty&&!((prodMap[g.id]||{})[m]>0)));
+      const active=cfg.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty||(prodMap[g.id]||{})[m]));
+      const missingProd=active.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty&&!((prodMap[g.id]||{})[m]>0)));
+      const gtRet =months.reduce((a,m)=>a+active.reduce((b,g)=>b+((retMap[g.id]||{})[m]?.qty||0),0),0);
+      const gtProd=months.reduce((a,m)=>a+active.reduce((b,g)=>b+((prodMap[g.id]||{})[m]||0),0),0);
+      const gtRate=gtProd>0&&gtRet>0?(gtRet/gtProd*100).toFixed(2):null;
+      const gtRc  =gtRate?(parseFloat(gtRate)<3?'var(--em)':parseFloat(gtRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
 
-      // ── Grand totals ─────────────────────────────────────────────────
-      const gtRet  = months.reduce((a,m)=>a+active.reduce((b,g)=>b+((retMap[g.id]||{})[m]?.qty||0),0),0);
-      const gtProd = months.reduce((a,m)=>a+active.reduce((b,g)=>b+((prodMap[g.id]||{})[m]||0),0),0);
-      const gtRate = gtProd>0&&gtRet>0?(gtRet/gtProd*100).toFixed(2):null;
-      const gtRc   = gtRate?(parseFloat(gtRate)<3?'var(--em)':parseFloat(gtRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
-
-      let html = '';
-
-      // Missing production banner
-      if (missingProd.length)
+      let html='';
+      if(missingProd.length)
         html+=`<div style="background:rgba(245,183,49,.1);border:1px solid rgba(245,183,49,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-          <div style="font-size:11px;color:var(--amber)">⚠️ بيانات إنتاج ناقصة في: <b>${missingProd.map(g=>g.name).join('، ')}</b></div>
+          <div style="font-size:11px;color:var(--amber)">⚠️ إنتاج ناقص: <b>${missingProd.map(g=>g.name).join('، ')}</b></div>
           <button class="btn btn-gold" style="font-size:10px;padding:3px 12px" onclick="showEditProdModal()">إدخال الإنتاج</button>
         </div>`;
 
-      // KPI bar
-      html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--bg3);border-radius:10px;align-items:center;justify-content:space-between">
+      // KPI summary bar
+      html+=`<div style="display:flex;gap:14px;flex-wrap:wrap;padding:10px 14px;background:var(--bg3);border-radius:10px;margin-bottom:14px;align-items:center;justify-content:space-between">
         <span style="font-size:11px;font-weight:700;color:var(--txt2)">📊 ${months.length} شهر · ${active.length} قسم</span>
-        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-          <div style="text-align:center"><div style="font-size:17px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div><div style="font-size:9px;color:var(--txt3)">إجمالي المرتجعات</div></div>
-          <div style="text-align:center"><div style="font-size:17px;font-weight:900;color:var(--cyan)">${gtProd>0?gtProd.toLocaleString('ar-EG'):'—'}</div><div style="font-size:9px;color:var(--txt3)">إجمالي الإنتاج</div></div>
-          ${gtRate?`<div style="text-align:center"><div style="font-size:20px;font-weight:900;color:${gtRc}">${gtRate}%</div><div style="font-size:9px;color:var(--txt3)">نسبة المرتجعات</div></div>`:''}
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div><div style="font-size:9px;color:var(--txt3)">إجمالي المرتجعات</div></div>
+          <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--cyan)">${gtProd>0?gtProd.toLocaleString('ar-EG'):'—'}</div><div style="font-size:9px;color:var(--txt3)">إجمالي الإنتاج</div></div>
+          ${gtRate?`<div style="text-align:center"><div style="font-size:22px;font-weight:900;color:${gtRc}">${gtRate}%</div><div style="font-size:9px;color:var(--txt3)">نسبة المرتجعات</div></div>`:''}
         </div>
       </div>`;
 
-      // ── Interactive table ─────────────────────────────────────────────
-      const thStyle = 'padding:8px 6px;text-align:center;border-bottom:2px solid var(--border2);font-size:10px;font-weight:700;white-space:nowrap;background:var(--bg4)';
-      const thStyleR = 'padding:8px 8px;text-align:right;border-bottom:2px solid var(--border2);font-size:10px;font-weight:700;background:var(--bg4)';
-
+      // Interactive table
       html+=`<div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border)">
       <table style="width:100%;border-collapse:collapse;font-size:11px">
         <thead>
-          <tr>
-            <th style="${thStyleR};min-width:130px">القسم</th>
-            ${months.map(m=>{const[y,mo]=m.split('-');return `<th style="${thStyle};min-width:120px">
-              <div>${MNF[+mo-1]} ${y}</div>
-            </th>`;}).join('')}
-            <th style="${thStyle};min-width:110px;border-right:2px solid var(--border2)">الإجمالي</th>
-          </tr>
-          <tr style="background:var(--bg4);border-bottom:1px solid var(--border)">
-            <td style="padding:4px 8px;font-size:9px;color:var(--txt3)">↩ مرتجع / 🏭 إنتاج / 📊 نسبة</td>
-            ${months.map(()=>`<td style="padding:4px;text-align:center;font-size:9px;color:var(--txt4)">↩ / 🏭 / %</td>`).join('')}
-            <td style="padding:4px;text-align:center;font-size:9px;color:var(--txt4);border-right:2px solid var(--border2)">مجموع</td>
+          <tr style="background:var(--bg4)">
+            <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border2);min-width:130px">القسم</th>
+            ${months.map(m=>{const[y,mo]=m.split('-');return`<th style="padding:8px 6px;text-align:center;border-bottom:2px solid var(--border2);min-width:115px;font-size:10px">${MNF[+mo-1]} ${y}</th>`;}).join('')}
+            <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border2);border-right:2px solid var(--border2);min-width:105px">الإجمالي</th>
           </tr>
         </thead>
         <tbody>
@@ -8615,61 +8772,58 @@
           const tP=months.reduce((a,m)=>a+((prodMap[g.id]||{})[m]||0),0);
           const tRate=tP>0&&tR>0?(tR/tP*100).toFixed(2):null;
           const tRc=tRate?(parseFloat(tRate)<3?'var(--em)':parseFloat(tRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
-          return `<tr style="border-bottom:1px solid var(--border)" id="pmr-${g.id}">
-            <td style="padding:7px 8px">
-              <div style="display:flex;align-items:center;gap:6px">
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px">
+              <div style="display:flex;align-items:center;gap:5px">
                 <span style="width:8px;height:8px;border-radius:50%;background:${g.color};flex-shrink:0"></span>
                 <span style="font-weight:700;font-size:11px">${g.icon} ${g.name}</span>
               </div>
-              <button style="font-size:8px;padding:2px 7px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--txt3);cursor:pointer;margin-top:4px" onclick="toggleProdRowDetail('prd-${g.id}')">▾ تفاصيل المنتجات</button>
+              <button style="font-size:8px;padding:2px 7px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--cyan);cursor:pointer;margin-top:4px" onclick="toggleProdDetail('pd-${g.id}')">📦 منتجات</button>
             </td>
             ${months.map(m=>{
-              const rd=(retMap[g.id]||{})[m];
-              const pd=(prodMap[g.id]||{})[m]||0;
-              if(!rd?.qty&&!pd) return `<td style="padding:7px 6px;text-align:center;color:var(--txt4);font-size:10px">—</td>`;
+              const rd=(retMap[g.id]||{})[m]; const pd=(prodMap[g.id]||{})[m]||0;
+              if(!rd?.qty&&!pd) return`<td style="padding:7px 5px;text-align:center;color:var(--txt4);font-size:10px">—</td>`;
               const rate=pd>0&&rd?.qty>0?(rd.qty/pd*100).toFixed(2):null;
               const rc=rate?(parseFloat(rate)<3?'var(--em)':parseFloat(rate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
-              const hasMissingProd=rd?.qty>0&&!pd;
-              return `<td style="padding:7px 6px;text-align:center;vertical-align:middle">
-                ${rd?.qty?`<div style="font-size:12px;font-weight:800;color:var(--red)">↩ ${rd.qty}</div>`:''}
-                ${pd?`<div style="font-size:10px;color:var(--cyan)">🏭 ${pd.toLocaleString('ar-EG')}</div>`:hasMissingProd?`<div style="font-size:9px;color:var(--amber)">🏭 <input type="number" min="0" placeholder="أدخل الإنتاج" style="width:80px;padding:2px 4px;border-radius:4px;border:1px solid var(--amber);background:var(--bg4);color:var(--txt);font-size:9px" onchange="updateProdVal('${g.id}','${m}',this.value)" /></div>`:''}
-                ${rate?`<div style="font-size:11px;font-weight:900;color:${rc}">${rate}%</div>`:''}
+              return`<td style="padding:7px 5px;text-align:center">
+                ${rd?.qty?`<div style="font-size:13px;font-weight:900;color:var(--red)">↩ ${rd.qty}</div>`:''}
+                ${pd?`<div style="font-size:10px;color:var(--cyan)">🏭 ${pd.toLocaleString('ar-EG')}</div>`
+                    :(rd?.qty?`<div><input type="number" min="0" placeholder="أدخل الإنتاج" style="width:85px;padding:3px 5px;border-radius:5px;border:1px solid var(--amber);background:var(--bg3);color:var(--txt);font-size:9px" oninput="updateProdVal('${g.id}','${m}',this.value)" /></div>`:'')}
+                ${rate?`<div style="font-size:12px;font-weight:900;color:${rc}">${rate}%</div>`:''}
               </td>`;
             }).join('')}
-            <td style="padding:7px 6px;text-align:center;border-right:2px solid var(--border2);background:var(--bg3)">
+            <td style="padding:7px;text-align:center;background:var(--bg3);border-right:2px solid var(--border2)">
               ${tR?`<div style="font-size:13px;font-weight:900;color:var(--red)">↩ ${tR.toLocaleString('ar-EG')}</div>`:''}
               ${tP?`<div style="font-size:10px;color:var(--cyan)">🏭 ${tP.toLocaleString('ar-EG')}</div>`:''}
               ${tRate?`<div style="font-size:13px;font-weight:900;color:${tRc}">${tRate}%</div>`:''}
             </td>
           </tr>
-          <!-- Product-level drill-down row -->
-          <tr id="prd-${g.id}" style="display:none">
+          <tr id="pd-${g.id}" style="display:none">
             <td colspan="${months.length+2}" style="padding:0">
               <div style="background:var(--bg4);border-top:1px dashed var(--border);border-bottom:1px solid var(--border2)">
-                <div style="padding:8px 12px">
-                  <div style="font-size:10px;color:var(--cyan);font-weight:700;margin-bottom:8px">📦 تفاصيل المنتجات — ${g.icon} ${g.name}</div>
+                <div style="padding:8px 12px;overflow-x:auto">
+                  <div style="font-size:10px;color:var(--cyan);font-weight:700;margin-bottom:7px">📦 ${g.icon} ${g.name} — تفاصيل كل منتج</div>
                   ${(()=>{
-                    // Build per-product table
-                    const prodItems={};
+                    const pItems={};
                     months.forEach(m=>{
                       const rd=(retMap[g.id]||{})[m]; if(!rd) return;
-                      Object.entries(rd.products||{}).forEach(([p,q])=>{
-                        if(!prodItems[p]) prodItems[p]={totalRet:0,byMonth:{}};
-                        prodItems[p].totalRet+=q; prodItems[p].byMonth[m]=q;
+                      Object.entries(rd.prods||{}).forEach(([p,q])=>{
+                        if(!pItems[p]) pItems[p]={total:0,byM:{}};
+                        pItems[p].total+=q; pItems[p].byM[m]=q;
                       });
                     });
-                    const sorted=Object.entries(prodItems).sort((a,b)=>b[1].totalRet-a[1].totalRet);
+                    const sorted=Object.entries(pItems).sort((a,b)=>b[1].total-a[1].total);
                     if(!sorted.length) return '<div style="font-size:10px;color:var(--txt4);padding:6px">لا توجد بيانات</div>';
-                    return `<table style="width:100%;border-collapse:collapse;font-size:10px">
+                    return`<table style="width:100%;border-collapse:collapse;font-size:10px">
                       <thead><tr style="color:var(--txt3)">
-                        <th style="padding:5px 8px;text-align:right;min-width:160px">المنتج</th>
-                        ${months.map(m=>{const[y,mo]=m.split('-');return `<th style="padding:5px;text-align:center;min-width:70px">${MN_SHORT[+mo-1]} ${y.slice(2)}</th>`;}).join('')}
-                        <th style="padding:5px;text-align:center">الإجمالي</th>
+                        <th style="padding:4px 8px;text-align:right;min-width:150px">المنتج</th>
+                        ${months.map(m=>{const[y,mo]=m.split('-');return`<th style="padding:4px;text-align:center;min-width:65px">${MN_SHORT[+mo-1]} ${y.slice(2)}</th>`;}).join('')}
+                        <th style="padding:4px;text-align:center">↩ إجمالي</th>
                       </tr></thead>
                       <tbody>${sorted.map(([p,d])=>`<tr style="border-top:1px solid var(--border)">
-                        <td style="padding:5px 8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:var(--txt2)" title="${p}">${p}</td>
-                        ${months.map(m=>{const q=d.byMonth[m]||0;const pd=(prodMap[g.id]||{})[m]||0;const rt=pd>0&&q>0?(q/pd*100).toFixed(1):null;const rc=rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'';return q?`<td style="padding:5px;text-align:center"><b style="color:var(--red)">${q}</b>${rt?`<br><span style="font-size:8.5px;color:${rc}">${rt}%</span>`:''}</td>`:`<td style="padding:5px;text-align:center;color:var(--txt4)">—</td>`;}).join('')}
-                        <td style="padding:5px;text-align:center;font-weight:800;color:var(--red)">${d.totalRet}</td>
+                        <td style="padding:4px 8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:var(--txt2)" title="${p}">${p}</td>
+                        ${months.map(m=>{const q=d.byM[m]||0;const pd=(prodMap[g.id]||{})[m]||0;const rt=pd>0&&q>0?(q/pd*100).toFixed(1):null;const rc=rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'';return q?`<td style="padding:4px;text-align:center"><b style="color:var(--red2)">${q}</b>${rt?`<br><span style="font-size:8.5px;color:${rc}">${rt}%</span>`:''}</td>`:`<td style="padding:4px;text-align:center;color:var(--txt4)">—</td>`;}).join('')}
+                        <td style="padding:4px;text-align:center;font-weight:900;color:var(--red)">${d.total}</td>
                       </tr>`).join('')}</tbody>
                     </table>`;
                   })()}
@@ -8678,24 +8832,23 @@
             </td>
           </tr>`;
         }).join('')}
-        <!-- Grand total row -->
         <tr style="font-weight:900;background:var(--bg3);border-top:2px solid var(--border2)">
-          <td style="padding:8px 8px;font-weight:800;color:var(--gold)">📊 الإجمالي الكلي</td>
+          <td style="padding:8px;color:var(--gold)">📊 الإجمالي الكلي</td>
           ${months.map(m=>{
             const tR=active.reduce((a,g)=>a+((retMap[g.id]||{})[m]?.qty||0),0);
             const tP=active.reduce((a,g)=>a+((prodMap[g.id]||{})[m]||0),0);
             const rate=tP>0&&tR>0?(tR/tP*100).toFixed(2):null;
             const rc=rate?(parseFloat(rate)<3?'var(--em)':parseFloat(rate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
-            return `<td style="padding:8px 6px;text-align:center">
+            return`<td style="padding:7px 5px;text-align:center">
               ${tR?`<div style="font-size:12px;font-weight:900;color:var(--red)">↩ ${tR.toLocaleString('ar-EG')}</div>`:''}
               ${tP?`<div style="font-size:10px;color:var(--cyan)">🏭 ${tP.toLocaleString('ar-EG')}</div>`:''}
               ${rate?`<div style="font-size:11px;font-weight:900;color:${rc}">${rate}%</div>`:''}
             </td>`;
           }).join('')}
-          <td style="padding:8px;text-align:center;border-right:2px solid var(--border2)">
+          <td style="padding:7px;text-align:center;border-right:2px solid var(--border2)">
             ${gtRet?`<div style="font-size:14px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div>`:''}
             ${gtProd?`<div style="font-size:11px;color:var(--cyan)">🏭 ${gtProd.toLocaleString('ar-EG')}</div>`:''}
-            ${gtRate?`<div style="font-size:14px;font-weight:900;color:${gtRc}">${gtRate}%</div>`:''}
+            ${gtRate?`<div style="font-size:15px;font-weight:900;color:${gtRc}">${gtRate}%</div>`:''}
           </td>
         </tr>
         </tbody>
@@ -8704,9 +8857,9 @@
       area.innerHTML = html;
     }
 
-    function toggleProdRowDetail(id) {
-      const el = _(id); if (!el) return;
-      el.style.display = el.style.display==='none'?'':'none';
+    function toggleProdDetail(id) {
+      const el=_(id); if(!el) return;
+      el.style.display=el.style.display==='none'?'':'none';
     }
     function renderGrpCardsV11(stats) {
       const grid = _('grp-cards-grid'); if (!grid) return;
