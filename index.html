@@ -3591,10 +3591,10 @@
       <div id="imp-panel-returns">
         <div class="card" style="margin-bottom:13px">
           <div class="dropzone" id="dropzone">
-            <input type="file" id="xlsInput" accept=".xlsx,.xls,.csv" onchange="handleExcel(this)">
+            <input type="file" id="xlsInput" accept=".xlsx,.xls,.csv" multiple onchange="handleExcel(this)">
             <span class="dz-ico">📊</span>
-            <h3 class="dz-title">اسحب ملف Excel هنا أو انقر للاختيار</h3>
-            <p class="dz-sub">يكتشف الأعمدة تلقائياً · يدعم جميع التنسيقات<br>
+            <h3 class="dz-title">اسحب ملفاً أو عدة ملفات Excel هنا أو انقر للاختيار</h3>
+            <p class="dz-sub">يكتشف الأعمدة تلقائياً · يدعم جميع التنسيقات · <b>يقبل عدة ملفات دفعةً واحدة</b><br>
               <small style="color:var(--txt3)">يقبل: التاريخ · القطاع · القطاعي البيعي · المندوب · الباركود · المجموعة ·
                 المنتج · الوحدة · الكمية · الإنتاج · تاريخ الإنتاج · تاريخ الانتهاء · الحالة · الوصف</small>
             </p>
@@ -3627,10 +3627,10 @@
             <div style="font-size:11.5px;color:var(--txt2);line-height:1.8">يمكنك إعادة استيراد الملف المُصدَّر <code style="background:var(--bg4);padding:1px 6px;border-radius:4px;color:var(--gold)">manahel_records.xlsx</code> أو <code style="background:var(--bg4);padding:1px 6px;border-radius:4px;color:var(--gold)">manahel_records.csv</code> مباشرةً. يتعرف النظام تلقائياً على بنية الملف ويتحقق من صحة البيانات قبل الاستيراد.</div>
           </div>
           <div class="dropzone" id="dropzone-manahel">
-            <input type="file" id="manahelInput" accept=".xlsx,.xls,.csv" onchange="handleManahelImport(this)">
+            <input type="file" id="manahelInput" accept=".xlsx,.xls,.csv" multiple onchange="handleManahelImport(this)">
             <span class="dz-ico">🔄</span>
             <h3 class="dz-title">استيراد manahel_records</h3>
-            <p class="dz-sub">اسحب ملف <strong>manahel_records.xlsx</strong> أو <strong>manahel_records.csv</strong> هنا<br>
+            <p class="dz-sub">اسحب ملفاً أو عدة ملفات <strong>manahel_records.xlsx / .csv</strong> هنا<br>
               <small style="color:var(--txt3)">يتحقق من: صحة التواريخ · اكتمال البيانات المطلوبة · تكرار السجلات</small>
             </p>
             <div class="pb-wrap" id="mnh-pb-wrap">
@@ -3722,8 +3722,8 @@
             <div class="card-title">📂 استيراد ملف IPC — المصرية</div>
             <div class="card-sub">ارفع ملف IPC Honey Report بصيغة .xlsx</div>
             <div style="margin-top:10px">
-              <input type="file" id="ipc1Input" accept=".xlsx,.xls" onchange="handleIPCImport(this,'hall1')" style="display:none">
-              <button class="btn btn-gold" onclick="_('ipc1Input').click()">📂 رفع ملف IPC المصرية</button>
+              <input type="file" id="ipc1Input" accept=".xlsx,.xls" multiple onchange="handleIPCImport(this,'hall1')" style="display:none">
+              <button class="btn btn-gold" onclick="_('ipc1Input').click()">📂 رفع ملف (أو ملفات) IPC المصرية</button>
               <span id="ipc1-status" style="font-size:11px;color:var(--txt2);margin-right:10px"></span>
             </div>
             <div id="ipc1-log" style="display:none;margin-top:8px;font-size:10.5px;line-height:1.8;max-height:80px;overflow-y:auto;color:var(--txt2)"></div>
@@ -3765,8 +3765,8 @@
             <div class="card-title">📂 استيراد ملف IPC — المتخصص</div>
             <div class="card-sub">ارفع ملف IPC Special Honey Report بصيغة .xlsx</div>
             <div style="margin-top:10px">
-              <input type="file" id="ipc2Input" accept=".xlsx,.xls" onchange="handleIPCImport(this,'hall2')" style="display:none">
-              <button class="btn btn-gold" onclick="_('ipc2Input').click()">📂 رفع ملف IPC المتخصص</button>
+              <input type="file" id="ipc2Input" accept=".xlsx,.xls" multiple onchange="handleIPCImport(this,'hall2')" style="display:none">
+              <button class="btn btn-gold" onclick="_('ipc2Input').click()">📂 رفع ملف (أو ملفات) IPC المتخصص</button>
               <span id="ipc2-status" style="font-size:11px;color:var(--txt2);margin-right:10px"></span>
             </div>
             <div id="ipc2-log" style="display:none;margin-top:8px;font-size:10.5px;line-height:1.8;max-height:80px;overflow-y:auto;color:var(--txt2)"></div>
@@ -6625,276 +6625,266 @@
       _('imp-tab-manahel').className = tab === 'manahel' ? 'btn btn-gold' : 'btn btn-ghost';
     }
 
-    function handleExcel(input) {
-      const file = input?.files?.[0]; if (!file) return;
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['xlsx','xls','csv'].includes(ext)) { toast('نوع الملف غير مدعوم. يُقبل فقط: xlsx, xls, csv', 'err'); if (input) input.value = ''; return; }
-      if (file.size > 20 * 1024 * 1024) { toast('حجم الملف أكبر من 20MB — يُرجى تقسيمه', 'err'); if (input) input.value = ''; return; }
-      _('import-pb-wrap').style.display = 'block';
-      _('import-log').style.display = 'block';
-      _('import-log').innerHTML = '';
-      setPb(10, 'قراءة الملف...');
-      const rdr = new FileReader();
-      rdr.onerror = () => { setPb(0, 'فشل'); toast('فشل قراءة الملف', 'err'); };
-      rdr.onload = e => {
-        try {
-          setPb(25, 'تحليل البنية...');
-          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, dateNF: 'YYYY-MM-DD' });
-          let totalAdded = 0, totalRejected = 0, sheetsOk = 0; const log = [];
-          const newMonthsSet = new Set();
-          wb.SheetNames.forEach((sn, si) => {
-            try {
-              const ws = wb.Sheets[sn];
-              if (!ws || !ws['!ref']) { log.push(`⚪ "${sn}": فارغة`); return; }
-              const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-              if (!rows || rows.length < 2) { log.push(`⚪ "${sn}": لا بيانات`); return; }
+function handleExcel(input) {
+  const files = Array.from(input?.files || []);
+  if (!files.length) return;
 
-              // Detect header row (search up to row 8)
-              let hRow = 0;
-              for (let i = 0; i < Math.min(8, rows.length); i++) {
-                const r = rows[i].map(c => String(c || '').trim());
-                if (r.some(c => c === 'التاريخ' || c.toLowerCase() === 'date' || c.includes('تاريخ الارجاع'))) { hRow = i; break; }
-              }
-              const hs = rows[hRow].map(h => String(h || '').replace(/\s+/g, ' ').trim());
+  // Validate all files first
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx','xls','csv'].includes(ext)) { toast(`نوع الملف غير مدعوم: ${file.name}`, 'err'); if (input) input.value = ''; return; }
+    if (file.size > 20 * 1024 * 1024) { toast(`حجم الملف أكبر من 20MB: ${file.name}`, 'err'); if (input) input.value = ''; return; }
+  }
 
-              // Column finder — exact match first, then includes
-              const ci = (...kw) => {
-                // exact match pass
-                let idx = hs.findIndex(h => kw.some(k => h === k));
-                if (idx >= 0) return idx;
-                // includes pass (normalized, no spaces)
-                const hsn = hs.map(h => h.replace(/\s/g,'').toLowerCase());
-                return hsn.findIndex(h => kw.some(k => h.includes(k.replace(/\s/g,'').toLowerCase())));
-              };
+  _('import-pb-wrap').style.display = 'block';
+  _('import-log').style.display = 'block';
+  _('import-log').innerHTML = '';
 
-              const idx = {
-                date:     ci('التاريخ', 'date', 'تاريخ الارجاع', 'تاريخ المرتجع'),
-                sector:   ci('القطاع', 'sector'),
-                channel:  ci('القطاعي البيعي', 'القطاعي', 'channel', 'البيعي'),
-                branch:   ci('المندوب / الفرع', 'المندوب', 'الفرع', 'branch'),
-                code:     ci('كو د برنامج', 'كود برنامج', 'كود', 'برنامج', 'barcode', 'code', 'item'),
-                group:    ci('مجموعه', 'مجموعة', 'group'),
-                product:  ci('المنتج', 'product', 'الصنف'),
-                unit:     ci('الوحده', 'الوحدة', 'unit'),
-                qty:      ci('الكمية', 'الكميه', 'qty', 'quantity', 'الكمیة'),
-                mfg:      ci('الانتاج', 'جهة الإنتاج', 'mfg', 'warehouse'),
-                prodDate: ci('تاريخ الانتاج', 'تاريخ الإنتاج', 'production date', 'prod date'),
-                expDate:  ci('تاريخ الانتهاء', 'انتهاء', 'expiry', 'exp date'),
-                status:   ci('الحاله', 'الحالة', 'status', 'العيب', 'سبب المرتجع'),
-                desc:     ci('الوصف', 'ملاحظات', 'desc', 'note'),
-              };
+  let fileIdx = 0, grandAdded = 0, grandRejected = 0;
+  const allLogs = [];
 
-              if (idx.date < 0) { log.push(`⚠️ "${sn}": عمود التاريخ غير موجود — تم تخطي الورقة`); return; }
-              if (idx.product < 0 && idx.code < 0) { log.push(`⚠️ "${sn}": لم يُعثر على عمود المنتج أو الباركود`); }
-
-              // FIX: No duplicate key check on import — each row is a separate event
-              // Only prevent re-importing the SAME FILE twice (check by id)
-              const existingIds = new Set(S.records.map(r => r.id).filter(Boolean));
-              let added = 0, rejected = 0;
-
-              rows.slice(hRow + 1).forEach(row => {
-                if (!row || row.every(c => !c && c !== 0)) return;
-                const rawDt = idx.date >= 0 ? row[idx.date] : '';
-                const ds = parseDate(rawDt);
-                if (!ds) { rejected++; return; }
-
-                const get = (i, d = '') => {
-                  if (i < 0 || i >= row.length) return d;
-                  const v = row[i];
-                  if (v === null || v === undefined || v === '') return d;
-                  return String(v).trim();
-                };
-
-                const prod = get(idx.product);
-                const bc = get(idx.code);
-                if (!prod && !bc) { rejected++; return; }
-
-                // Parse qty properly — handle numeric cells directly
-                let qty = 1;
-                if (idx.qty >= 0 && idx.qty < row.length) {
-                  const rawQty = row[idx.qty];
-                  if (typeof rawQty === 'number') qty = Math.max(1, Math.round(rawQty));
-                  else qty = Math.max(1, parseInt(String(rawQty).replace(/[^0-9]/g, '')) || 1);
-                }
-
-                const rec = {
-                  id: uid(),
-                  date: ds,
-                  sector:   get(idx.sector),
-                  channel:  get(idx.channel),
-                  branch:   get(idx.branch),
-                  barcode:  bc,
-                  group:    get(idx.group, ''),
-                  product:  prod || bc,
-                  unit:     get(idx.unit, 'عدد'),
-                  qty,
-                  mfg:      get(idx.mfg, 'إنتاج المصرية'),
-                  prodDate: (() => {
-                    // raw:false returns string from XLSX → parseDate via regex = correct
-                    // But if somehow a Date object arrives, add 1 day to cancel UTC→local shift
-                    const rawPD = idx.prodDate >= 0 && idx.prodDate < row.length ? row[idx.prodDate] : null;
-                    const parsed = parseDate(rawPD);
-                    if (!parsed) return '';
-                    // If raw was Date object (not string), UTC midnight may have shifted -1 day
-                    return (rawPD instanceof Date) ? addOneDay(parsed) : parsed;
-                  })(),
-                  expDate:  (() => {
-                    const rawED = idx.expDate >= 0 && idx.expDate < row.length ? row[idx.expDate] : null;
-                    const parsed = parseDate(rawED);
-                    if (!parsed) return '';
-                    return (rawED instanceof Date) ? addOneDay(parsed) : parsed;
-                  })(),
-                  status:   get(idx.status, 'تسييل'),
-                  desc:     get(idx.desc, '')
-                };
-                S.records.push(rec);
-                added++; totalAdded++;
-                if (ds) newMonthsSet.add(ds.slice(0, 7));
-              });
-
-              totalRejected += rejected;
-              if (added > 0) {
-                sheetsOk++;
-                log.push(`✅ "${sn}": ${added} سجل · مجموع الكمية: ${S.records.slice(-added).reduce((a,r)=>a+r.qty,0)}${rejected ? ` · ${rejected} صف مرفوض` : ''}`);
-              } else {
-                log.push(`⚠️ "${sn}": لم يُضف شيء${rejected ? ` (${rejected} مرفوض)` : ''}`);
-              }
-            } catch (se) { log.push(`❌ "${sn}": ${se.message}`); }
-            setPb(25 + Math.round(60 * (si + 1) / wb.SheetNames.length), `معالجة "${sn}"...`);
-          });
-
-          S.records = DataProcessor.normalize(S.records);
-          setPb(90, 'حفظ...');
-          save(true); updateBadges(); populateFilterSelects();
-          if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) setTimeout(renderProductionPage,250);
-          setPb(100, '✓ اكتمل');
-
-          const totalQty = S.records.reduce((a,r)=>a+r.qty,0);
-          _('import-log').innerHTML = log.join('<br>') +
-            (totalRejected ? `<br><span style="color:var(--red2)">❌ ${totalRejected} صف مرفوض (بلا تاريخ أو منتج)</span>` : '') ||
-            '<span style="color:var(--txt4)">لم يُعالج شيء</span>';
-
-          if (totalAdded > 0) {
-            toast(`✅ تم استيراد ${totalAdded} سجل — إجمالي الكمية: ${S.records.slice(-totalAdded).reduce((a,r)=>a+r.qty,0)} وحدة`);
-            // Re-render production halls dynamically with new return data
-            if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) {
-              setTimeout(renderProductionPage, 300);
-            }
-            const missing = getMissingProdMonths();
-            if (missing.length > 0) setTimeout(() => showMissingProdModal(missing), 1200);
-          } else toast('لم يُستورد أي سجل', 'err');
-        } catch (err) { setPb(0, 'خطأ'); toast('خطأ: ' + err.message, 'err'); }
-        if (input) input.value = '';
-      };
-      rdr.readAsArrayBuffer(file);
+  function processNextFile() {
+    if (fileIdx >= files.length) {
+      S.records = DataProcessor.normalize(S.records);
+      setPb(100, `✓ اكتمل — ${grandAdded} سجل من ${files.length} ملف`);
+      save(true); updateBadges(); populateFilterSelects();
+      if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) setTimeout(renderProductionPage,250);
+      _('import-log').innerHTML = allLogs.join('<br>') +
+        (grandRejected ? `<br><span style="color:var(--red2)">❌ ${grandRejected} صف مرفوض إجمالاً</span>` : '');
+      if (grandAdded > 0) {
+        toast(`✅ تم استيراد ${grandAdded} سجل من ${files.length} ملف`);
+        if (S.production&&S.production.halls&&Object.keys(S.production.halls).length) setTimeout(renderProductionPage, 300);
+        const missing = getMissingProdMonths();
+        if (missing.length > 0) setTimeout(() => showMissingProdModal(missing), 1200);
+      } else toast('لم يُستورد أي سجل', 'err');
+      if (input) input.value = '';
+      return;
     }
+
+    const file = files[fileIdx];
+    const pct = Math.round((fileIdx / files.length) * 80) + 5;
+    setPb(pct, `(${fileIdx+1}/${files.length}) ${file.name}`);
+    allLogs.push(`<b style="color:var(--cyan)">📁 ${file.name}:</b>`);
+
+    const rdr = new FileReader();
+    rdr.onerror = () => { allLogs.push(`  ❌ فشل قراءة الملف`); fileIdx++; processNextFile(); };
+    rdr.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, dateNF: 'YYYY-MM-DD' });
+        let totalAdded = 0, totalRejected = 0, sheetsOk = 0;
+
+        wb.SheetNames.forEach((sn) => {
+          try {
+            const ws = wb.Sheets[sn];
+            if (!ws || !ws['!ref']) { allLogs.push(`  ⚪ "${sn}": فارغة`); return; }
+            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+            if (!rows || rows.length < 2) { allLogs.push(`  ⚪ "${sn}": لا بيانات`); return; }
+
+            let hRow = 0;
+            for (let i = 0; i < Math.min(8, rows.length); i++) {
+              const r = rows[i].map(c => String(c || '').trim());
+              if (r.some(c => c === 'التاريخ' || c.toLowerCase() === 'date' || c.includes('تاريخ الارجاع'))) { hRow = i; break; }
+            }
+            const hs = rows[hRow].map(h => String(h || '').replace(/\s+/g, ' ').trim());
+
+            const ci = (...kw) => {
+              let idx = hs.findIndex(h => kw.some(k => h === k));
+              if (idx >= 0) return idx;
+              const hsn = hs.map(h => h.replace(/\s/g,'').toLowerCase());
+              return hsn.findIndex(h => kw.some(k => h.includes(k.replace(/\s/g,'').toLowerCase())));
+            };
+
+            const idx = {
+              date:     ci('التاريخ', 'date', 'تاريخ الارجاع', 'تاريخ المرتجع'),
+              sector:   ci('القطاع', 'sector'),
+              channel:  ci('القطاعي البيعي', 'القطاعي', 'channel', 'البيعي'),
+              branch:   ci('المندوب / الفرع', 'المندوب', 'الفرع', 'branch'),
+              code:     ci('كو د برنامج', 'كود برنامج', 'كود', 'برنامج', 'barcode', 'code', 'item'),
+              group:    ci('مجموعه', 'مجموعة', 'group'),
+              product:  ci('المنتج', 'product', 'الصنف'),
+              unit:     ci('الوحده', 'الوحدة', 'unit'),
+              qty:      ci('الكمية', 'الكميه', 'qty', 'quantity', 'الكمیة'),
+              mfg:      ci('الانتاج', 'جهة الإنتاج', 'mfg', 'warehouse'),
+              prodDate: ci('تاريخ الانتاج', 'تاريخ الإنتاج', 'production date', 'prod date'),
+              expDate:  ci('تاريخ الانتهاء', 'انتهاء', 'expiry', 'exp date'),
+              status:   ci('الحاله', 'الحالة', 'status', 'العيب', 'سبب المرتجع'),
+              desc:     ci('الوصف', 'ملاحظات', 'desc', 'note'),
+            };
+
+            if (idx.date < 0) { allLogs.push(`  ⚠️ "${sn}": عمود التاريخ غير موجود`); return; }
+            if (idx.product < 0 && idx.code < 0) { allLogs.push(`  ⚠️ "${sn}": لم يُعثر على عمود المنتج أو الباركود`); }
+
+            let added = 0, rejected = 0;
+            rows.slice(hRow + 1).forEach(row => {
+              if (!row || row.every(c => !c && c !== 0)) return;
+              const rawDt = idx.date >= 0 ? row[idx.date] : '';
+              const ds = parseDate(rawDt);
+              if (!ds) { rejected++; return; }
+
+              const get = (i, d = '') => {
+                if (i < 0 || i >= row.length) return d;
+                const v = row[i];
+                if (v === null || v === undefined || v === '') return d;
+                return String(v).trim();
+              };
+
+              const prod = get(idx.product);
+              const bc = get(idx.code);
+              if (!prod && !bc) { rejected++; return; }
+
+              let qty = 1;
+              if (idx.qty >= 0 && idx.qty < row.length) {
+                const rawQty = row[idx.qty];
+                if (typeof rawQty === 'number') qty = Math.max(1, Math.round(rawQty));
+                else qty = Math.max(1, parseInt(String(rawQty).replace(/[^0-9]/g, '')) || 1);
+              }
+
+              const rec = {
+                id: uid(), date: ds,
+                sector:   get(idx.sector),   channel:  get(idx.channel),
+                branch:   get(idx.branch),   barcode:  bc,
+                group:    get(idx.group, ''), product:  prod || bc,
+                unit:     get(idx.unit, 'عدد'), qty,
+                mfg:      get(idx.mfg, 'إنتاج المصرية'),
+                prodDate: (() => { const rawPD = idx.prodDate >= 0 && idx.prodDate < row.length ? row[idx.prodDate] : null; const parsed = parseDate(rawPD); if (!parsed) return ''; return (rawPD instanceof Date) ? addOneDay(parsed) : parsed; })(),
+                expDate:  (() => { const rawED = idx.expDate >= 0 && idx.expDate < row.length ? row[idx.expDate] : null; const parsed = parseDate(rawED); if (!parsed) return ''; return (rawED instanceof Date) ? addOneDay(parsed) : parsed; })(),
+                status:   get(idx.status, 'تسييل'), desc: get(idx.desc, '')
+              };
+              S.records.push(rec);
+              added++; totalAdded++;
+            });
+            totalRejected += rejected;
+            if (added > 0) { sheetsOk++; allLogs.push(`  ✅ "${sn}": ${added} سجل${rejected ? ` · ${rejected} مرفوض` : ''}`); }
+            else { allLogs.push(`  ⚠️ "${sn}": لم يُضف شيء${rejected ? ` (${rejected} مرفوض)` : ''}`); }
+          } catch (se) { allLogs.push(`  ❌ "${sn}": ${se.message}`); }
+        });
+
+        grandAdded += totalAdded;
+        grandRejected += totalRejected;
+        allLogs.push(`  📊 <b style="color:var(--gold)">${totalAdded} سجل</b>${totalRejected?` · <span style="color:var(--red2)">${totalRejected} مرفوض</span>`:''}`);
+      } catch (err) { allLogs.push(`  ❌ خطأ في القراءة: ${err.message}`); }
+      fileIdx++;
+      processNextFile();
+    };
+    rdr.readAsArrayBuffer(file);
+  }
+
+  processNextFile();
+}
 
     /* Import manahel_records.xlsx/csv (re-import exported file) */
-    function handleManahelImport(input) {
-      const file = input?.files?.[0]; if (!file) return;
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['xlsx','xls','csv'].includes(ext)) { toast('نوع الملف غير مدعوم', 'err'); if (input) input.value = ''; return; }
-      if (file.size > 20 * 1024 * 1024) { toast('حجم الملف أكبر من 20MB', 'err'); if (input) input.value = ''; return; }
-      const setMPb = (pct, txt) => {
-        const f = _('mnh-pb-fill'); if (f) f.style.width = pct + '%';
-        const l = _('mnh-pb-txt'); if (l) l.textContent = txt;
-      };
-      _('mnh-pb-wrap').style.display = 'block';
-      _('mnh-log').style.display = 'block';
-      _('mnh-log').innerHTML = '';
-      setMPb(10, 'قراءة الملف...');
-      const rdr = new FileReader();
-      rdr.onerror = () => { setMPb(0, 'فشل'); toast('فشل قراءة الملف', 'err'); };
-      rdr.onload = e => {
-        try {
-          setMPb(30, 'تحليل البنية...');
-          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, dateNF: 'YYYY-MM-DD' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          if (!ws || !ws['!ref']) { toast('الملف فارغ', 'err'); return; }
-          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-          if (rows.length < 2) { toast('لا توجد بيانات في الملف', 'err'); return; }
-          setMPb(45, 'قراءة الأعمدة...');
-          const hs = rows[0].map(h => String(h || '').trim());
-          // Map manahel_records columns (matches expRecCSV output)
-          const ci = (...kw) => hs.findIndex(h => { const hl = h.toLowerCase(); return kw.some(k => hl.includes(k.toLowerCase())); });
-          const idx = {
-            date:     ci('التاريخ', 'date'),
-            sector:   ci('القطاع', 'sector'),
-            channel:  ci('القناة', 'channel', 'القطاعي'),
-            branch:   ci('الفرع', 'branch', 'المندوب'),
-            barcode:  ci('الباركود', 'barcode', 'كود'),
-            product:  ci('المنتج', 'product', 'الصنف'),
-            group:    ci('المجموعة', 'مجموعه', 'group'),
-            unit:     ci('الوحدة', 'unit'),
-            qty:      ci('الكمية', 'qty', 'quantity'),
-            status:   ci('السبب', 'الحالة', 'status'),
-            mfg:      ci('جهة الإنتاج', 'الإنتاج', 'mfg'),
-            prodDate: ci('تاريخ الإنتاج', 'prod'),
-            expDate:  ci('تاريخ الانتهاء', 'expiry', 'انتهاء'),
-          };
-          // Validate structure
-          const missing = [];
-          if (idx.date < 0) missing.push('التاريخ');
-          if (idx.product < 0 && idx.barcode < 0) missing.push('المنتج/الباركود');
-          if (missing.length) { toast(`أعمدة مفقودة: ${missing.join(', ')} — تأكد من استخدام ملف manahel_records`, 'err'); return; }
-          setMPb(60, 'معالجة السجلات...');
-          const existingKeys = new Set(S.records.map(r => `${r.date}|${r.product||r.barcode}|${r.qty}`));
-          const existingIds = new Set(S.records.map(r => r.id).filter(Boolean));
-          let added = 0, rejected = 0, dupes = 0;
-          const log = [];
-          const newMonthsSet = new Set();
-          rows.slice(1).forEach(row => {
-            if (!row || row.every(c => !c && c !== 0)) return;
-            const get = (i, d = '') => i >= 0 && i < row.length ? String(row[i] || '').trim() : d;
-            const ds = parseDate(get(idx.date)); if (!ds) { rejected++; return; }
-            const product = get(idx.product) || get(idx.barcode);
-            if (!product) { rejected++; return; }
-            const qty = Math.max(1, parseFloat(get(idx.qty, '1')) || 1);
-            const status = get(idx.status);
-            if (!status) { rejected++; return; } // must have reason
-            const dupeKey = `${ds}|${product}|${qty}`;
-            if (existingKeys.has(dupeKey)) { dupes++; return; }
-            const rec = {
-              id: uid(), date: ds,
-              sector: get(idx.sector), channel: get(idx.channel),
-              branch: get(idx.branch), barcode: get(idx.barcode),
-              group: get(idx.group, ''), product, unit: get(idx.unit, 'عدد'), qty,
-              mfg: get(idx.mfg, ''),
-              prodDate: (() => {
-                const rv = idx.prodDate >= 0 && idx.prodDate < row.length ? row[idx.prodDate] : null;
-                const p = parseDate(rv instanceof Date ? rv : get(idx.prodDate));
-                return p ? ((rv instanceof Date) ? addOneDay(p) : p) : '';
-              })(),
-              expDate: (() => {
-                const rv = idx.expDate >= 0 && idx.expDate < row.length ? row[idx.expDate] : null;
-                const p = parseDate(rv instanceof Date ? rv : get(idx.expDate));
-                return p ? ((rv instanceof Date) ? addOneDay(p) : p) : '';
-              })(),
-              status, desc: ''
-            };
-            S.records.push(rec); added++;
-            existingKeys.add(dupeKey);
-            if (ds) newMonthsSet.add(ds.slice(0, 7));
-          });
-          setMPb(85, 'حفظ...');
-          S.records = DataProcessor.normalize(S.records);
-          save(true); updateBadges(); populateFilterSelects();
-          setMPb(100, '✓ اكتمل');
-          const summary = `✅ تم الاستيراد من manahel_records: ${added} سجل مضاف${dupes ? ` · ${dupes} مكرر تجاهل` : ''}${rejected ? ` · ${rejected} مرفوض` : ''}`;
-          _('mnh-log').innerHTML = summary;
-          if (added > 0) {
-            toast(`تم استيراد ${added} سجل من manahel_records ✓`, 'ok');
-            const missingProdMonths = [...newMonthsSet].filter(m => {
-              const cfg2 = S.groupConfig || buildDefaultGroupConfig();
-              return cfg2.some(g => !(S.monthlyProduction[g.id] || {})[m]);
-            });
-            if (missingProdMonths.length) setTimeout(() => showProdNotifyModal(missingProdMonths), 1200);
-          } else toast(dupes ? `جميع السجلات موجودة بالفعل (${dupes} مكرر)` : 'لم يُستورد أي سجل', dupes ? 'info' : 'err');
-        } catch (err) { setMPb(0, 'خطأ'); toast('خطأ: ' + err.message, 'err'); }
-        if (input) input.value = '';
-      };
-      rdr.readAsArrayBuffer(file);
+function handleManahelImport(input) {
+  const files = Array.from(input?.files || []);
+  if (!files.length) return;
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx','xls','csv'].includes(ext)) { toast(`نوع الملف غير مدعوم: ${file.name}`, 'err'); if (input) input.value = ''; return; }
+    if (file.size > 20 * 1024 * 1024) { toast(`حجم الملف أكبر من 20MB: ${file.name}`, 'err'); if (input) input.value = ''; return; }
+  }
+
+  const setMPb = (pct, txt) => {
+    const f = _('mnh-pb-fill'); if (f) f.style.width = pct + '%';
+    const l = _('mnh-pb-txt'); if (l) l.textContent = txt;
+  };
+  _('mnh-pb-wrap').style.display = 'block';
+  _('mnh-log').style.display = 'block';
+  _('mnh-log').innerHTML = '';
+  setMPb(5, 'بدء المعالجة...');
+
+  let fileIdx = 0, grandAdded = 0, grandDupes = 0, grandRejected = 0;
+  const allLogs = [];
+  const existingKeys = new Set(S.records.map(r => `${r.date}|${r.product||r.barcode}|${r.qty}`));
+
+  function processNextFile() {
+    if (fileIdx >= files.length) {
+      S.records = DataProcessor.normalize(S.records);
+      save(true); updateBadges(); populateFilterSelects();
+      setMPb(100, '✓ اكتمل');
+      _('mnh-log').innerHTML = allLogs.join('<br>');
+      if (grandAdded > 0) {
+        toast(`تم استيراد ${grandAdded} سجل من ${files.length} ملف${grandDupes?` · ${grandDupes} مكرر تجاهل`:''} ✓`, 'ok');
+      } else {
+        toast(grandDupes ? `جميع السجلات موجودة بالفعل (${grandDupes} مكرر)` : 'لم يُستورد أي سجل', grandDupes?'info':'err');
+      }
+      if (input) input.value = '';
+      return;
     }
+
+    const file = files[fileIdx];
+    const pct = Math.round((fileIdx / files.length) * 80) + 10;
+    setMPb(pct, `(${fileIdx+1}/${files.length}) ${file.name}`);
+    allLogs.push(`<b style="color:var(--cyan)">🔄 ${file.name}:</b>`);
+
+    const rdr = new FileReader();
+    rdr.onerror = () => { allLogs.push(`  ❌ فشل قراءة الملف`); fileIdx++; processNextFile(); };
+    rdr.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, dateNF: 'YYYY-MM-DD' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        if (!ws || !ws['!ref']) { allLogs.push(`  ❌ الملف فارغ`); fileIdx++; processNextFile(); return; }
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+        if (rows.length < 2) { allLogs.push(`  ❌ لا توجد بيانات`); fileIdx++; processNextFile(); return; }
+
+        const hs = rows[0].map(h => String(h || '').trim());
+        const ci = (...kw) => hs.findIndex(h => { const hl = h.toLowerCase(); return kw.some(k => hl.includes(k.toLowerCase())); });
+
+        const idx = {
+          date:     ci('التاريخ', 'date'),
+          sector:   ci('القطاع', 'sector'),
+          channel:  ci('القناة', 'channel', 'القطاعي'),
+          branch:   ci('الفرع', 'branch', 'المندوب'),
+          barcode:  ci('الباركود', 'barcode', 'كود'),
+          product:  ci('المنتج', 'product', 'الصنف'),
+          group:    ci('المجموعة', 'مجموعه', 'group'),
+          unit:     ci('الوحدة', 'unit'),
+          qty:      ci('الكمية', 'qty', 'quantity'),
+          status:   ci('السبب', 'الحالة', 'status'),
+          mfg:      ci('جهة الإنتاج', 'الإنتاج', 'mfg'),
+          prodDate: ci('تاريخ الإنتاج', 'prod'),
+          expDate:  ci('تاريخ الانتهاء', 'expiry', 'انتهاء'),
+        };
+
+        const missing = [];
+        if (idx.date < 0) missing.push('التاريخ');
+        if (idx.product < 0 && idx.barcode < 0) missing.push('المنتج/الباركود');
+        if (missing.length) { allLogs.push(`  ⚠️ أعمدة مفقودة: ${missing.join(', ')}`); fileIdx++; processNextFile(); return; }
+
+        let added = 0, rejected = 0, dupes = 0;
+        rows.slice(1).forEach(row => {
+          if (!row || row.every(c => !c && c !== 0)) return;
+          const get = (i, d = '') => i >= 0 && i < row.length ? String(row[i] || '').trim() : d;
+          const ds = parseDate(get(idx.date)); if (!ds) { rejected++; return; }
+          const product = get(idx.product) || get(idx.barcode);
+          if (!product) { rejected++; return; }
+          const qty = Math.max(1, parseFloat(get(idx.qty, '1')) || 1);
+          const status = get(idx.status);
+          if (!status) { rejected++; return; }
+          const dupeKey = `${ds}|${product}|${qty}`;
+          if (existingKeys.has(dupeKey)) { dupes++; return; }
+          const rec = {
+            id: uid(), date: ds,
+            sector: get(idx.sector), channel: get(idx.channel),
+            branch: get(idx.branch), barcode: get(idx.barcode),
+            group: get(idx.group, ''), product, unit: get(idx.unit, 'عدد'), qty,
+            mfg: get(idx.mfg, ''),
+            prodDate: (() => { const rv = idx.prodDate >= 0 && idx.prodDate < row.length ? row[idx.prodDate] : null; const p = parseDate(rv instanceof Date ? rv : get(idx.prodDate)); return p ? ((rv instanceof Date) ? addOneDay(p) : p) : ''; })(),
+            expDate: (() => { const rv = idx.expDate >= 0 && idx.expDate < row.length ? row[idx.expDate] : null; const p = parseDate(rv instanceof Date ? rv : get(idx.expDate)); return p ? ((rv instanceof Date) ? addOneDay(p) : p) : ''; })(),
+            status, desc: ''
+          };
+          S.records.push(rec);
+          added++; existingKeys.add(dupeKey);
+        });
+        grandAdded += added; grandDupes += dupes; grandRejected += rejected;
+        allLogs.push(`  ✅ ${added} مضاف${dupes?` · ${dupes} مكرر`:''}${rejected?` · ${rejected} مرفوض`:''}`);
+      } catch (err) { allLogs.push(`  ❌ خطأ: ${err.message}`); }
+      fileIdx++;
+      processNextFile();
+    };
+    rdr.readAsArrayBuffer(file);
+  }
+
+  processNextFile();
+}
 
     function setPb(pct, txt) {
       const fill = _('import-pb-fill'); if (fill) fill.style.width = pct + '%';
@@ -7172,230 +7162,165 @@
     let _activeGroup = { hall1: null, hall2: null };
 
     // Parse IPC Excel file (both hall formats share same schema)
-    function handleIPCImport(input, hallKey) {
-      const file = input?.files?.[0]; if (!file) return;
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['xlsx','xls'].includes(ext)) { toast('يُقبل فقط xlsx أو xls', 'err'); input.value=''; return; }
+function handleIPCImport(input, hallKey) {
+  const files = Array.from(input?.files || []);
+  if (!files.length) return;
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx','xls'].includes(ext)) { toast(`يُقبل فقط xlsx أو xls: ${file.name}`, 'err'); input.value=''; return; }
+  }
 
-      const statusEl = _(`ipc${hallKey==='hall1'?'1':'2'}-status`);
-      const logEl = _(`ipc${hallKey==='hall1'?'1':'2'}-log`);
-      if (statusEl) statusEl.textContent = '⏳ جاري القراءة...';
-      if (logEl) { logEl.style.display='block'; logEl.innerHTML=''; }
+  const statusEl = _(`ipc${hallKey==='hall1'?'1':'2'}-status`);
+  const logEl    = _(`ipc${hallKey==='hall1'?'1':'2'}-log`);
+  if (statusEl) statusEl.textContent = `⏳ معالجة ${files.length} ملف...`;
+  if (logEl) { logEl.style.display='block'; logEl.innerHTML=''; }
 
-      const rdr = new FileReader();
-      rdr.onerror = () => { if(statusEl) statusEl.textContent='❌ فشل'; toast('فشل قراءة الملف','err'); };
-      rdr.onload = e => {
-        try {
-          const wb = XLSX.read(e.target.result, { type:'array', cellDates:true, dateNF:'YYYY-MM-DD' });
-          const log = [];
+  let fileIdx = 0, grandRecs = 0;
+  const allLogs = [];
 
-          // 1. Read Barcode sheet
-          const barcodeMap = {};
-          const bsn = wb.SheetNames.find(s => s.toLowerCase() === 'barcode');
-          if (bsn) {
-            const brows = XLSX.utils.sheet_to_json(wb.Sheets[bsn], { header:1, defval:'', raw:false });
-            brows.slice(1).forEach(r => {
-              const bc = String(r[0]||'').trim();
-              const nm = String(r[1]||'').trim();
-              const gr = String(r[2]||'').trim();
-              if (bc && nm && bc !== 'Barcode') barcodeMap[bc] = { name: nm, group: gr };
-            });
-            log.push(`✅ Barcode: ${Object.keys(barcodeMap).length} منتج`);
-          }
-
-          // 2. Read REPORT sheet
-          const records = [];
-          const rsn = wb.SheetNames.find(s => s.toUpperCase() === 'REPORT');
-          if (rsn) {
-            const rrows = XLSX.utils.sheet_to_json(wb.Sheets[rsn], { header:1, defval:'', raw:false });
-            // Find header row (has 'Operation date' or 'Barcode')
-            let hRow = 6; // default row index (0-based)
-            for (let i=0; i<Math.min(10,rrows.length); i++) {
-              const r = rrows[i].map(c => String(c||'').toLowerCase());
-              if (r.some(c => c.includes('operation') || c === 'barcode' || c.includes('actual'))) { hRow=i; break; }
-            }
-            let added=0, rej=0;
-            rrows.slice(hRow+1).forEach(row => {
-              const opDate = row[0];
-              if (!opDate) return;
-              const _dsParsed = parseDate(opDate);
-              if (!_dsParsed) { rej++; return; }
-              // If opDate came as a Date object, add 1 day to cancel UTC→local shift
-              const ds = (opDate instanceof Date) ? addOneDay(_dsParsed) : _dsParsed;
-              const bc = String(row[1]||'').trim();
-              const info = barcodeMap[bc] || {};
-              // Get product name — either from barcode map or raw cell (resolved VLOOKUP)
-              let prodName = info.name || '';
-              if (!prodName) {
-                const raw2 = String(row[2]||'').trim();
-                prodName = raw2.startsWith('=') ? (bc || 'غير محدد') : (raw2 || bc || 'غير محدد');
-              }
-              // Group
-              let grp = info.group || '';
-              if (!grp) {
-                const raw3 = String(row[3]||'').trim();
-                grp = raw3.startsWith('=') ? 'NA' : (raw3 || 'NA');
-              }
-              const toNum = v => { if (typeof v==='number') return v; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; };
-              const actualProd = toNum(row[7]);
-              const plannedProd = toNum(row[8]) || actualProd;
-              const defA = toNum(row[14]);
-              const defB = toNum(row[15]);
-              const defC = toNum(row[16]);
-              const defD = toNum(row[17]);
-              const totalDef = defA + defB + defC + defD;
-              const samples = toNum(row[13]);
-              const demerit = samples>0 ? (defA*100 + defB*50 + defC*10 + defD*1) / samples : 0;
-              let grade = 'first';
-              if (demerit >= 5) grade='reject';
-              else if (demerit >= 4) grade='5th';
-              else if (demerit >= 3) grade='fourth';
-              else if (demerit >= 2) grade='third';
-              else if (demerit >= 1) grade='second';
-              // Sigma
-              let sigma = row[29];
-              if (sigma===undefined||sigma===null||sigma==='') sigma = null;
-              else sigma = parseInt(String(sigma))||null;
-
-              // Use row[5] as prodDate — if it's a Date object, add 1 day to cancel UTC→local shift
-              // (same logic as the returns import: raw:false gives strings which are always correct;
-              //  but row[] may still arrive as Date in some XLSX builds → addOneDay needed)
-              const rawProd = row[5];
-              const _parsedProd = parseDate(rawProd) || ds;
-              const prodDate = (rawProd instanceof Date) ? addOneDay(_parsedProd) : _parsedProd;
-              records.push({
-                id: uid(),
-                opDate: ds,
-                prodDate,
-                barcode: bc,
-                product: prodName,
-                group: grp,
-                batch: String(row[4]||'').trim(),
-                avgWeight: toNum(row[6]),
-                actualProd,
-                plannedProd,
-                overProcess: toNum(row[10]),
-                rework: toNum(row[11]),
-                downtime: toNum(row[12]),
-                totalSample: samples,
-                defA, defB, defC, defD,
-                totalDef,
-                demerit: Math.round(demerit*100)/100,
-                grade,
-                sigma,
-              });
-              added++;
-            });
-            log.push(`✅ REPORT: ${added} تشغيلة — إجمالي الإنتاج: ${records.reduce((a,r)=>a+r.actualProd,0).toLocaleString('ar-EG')} وحدة${rej?` · ${rej} مرفوض`:''}`);
-          }
-
-          // 3. Read NCR sheet
-          const ncrs = [];
-          const nsn = wb.SheetNames.find(s => s.toUpperCase() === 'NCR');
-          if (nsn) {
-            const nrows = XLSX.utils.sheet_to_json(wb.Sheets[nsn], { header:1, defval:'', raw:false });
-            nrows.slice(1).forEach(row => {
-              const dt = parseDate(row[2]) || parseDate(row[1]);
-              const item = String(row[3]||row[2]||'').trim();
-              const desc = String(row[5]||row[4]||'').trim();
-              const action = String(row[6]||row[5]||'').trim();
-              const pct = row[7] !== undefined ? String(row[7]||'') : '';
-              if (!dt && !item) return;
-              ncrs.push({ date: dt||'', item, batch: String(row[4]||'').trim(), desc, action, pct: pct||'' });
-            });
-            log.push(`✅ NCR: ${ncrs.length} حالة`);
-          }
-
-          // 4. Read عيوب المستلزمات sheet
-          const supDefs = [];
-          const ssn = wb.SheetNames.find(s => s.includes('عيوب') || s.includes('مستلزم'));
-          if (ssn) {
-            const srows = XLSX.utils.sheet_to_json(wb.Sheets[ssn], { header:1, defval:'', raw:false });
-            srows.slice(2).forEach(row => {
-              const item = String(row[2]||'').trim();
-              const issue = String(row[3]||'').trim();
-              const action = String(row[4]||'').trim();
-              const cause = String(row[5]||'').trim();
-              const pct = String(row[7]||'').trim();
-              const freq = String(row[8]||'').trim();
-              if (!item) return;
-              supDefs.push({ item, issue, action, cause, pct, freq });
-            });
-            log.push(`✅ عيوب المستلزمات: ${supDefs.length} حالة`);
-          }
-
-          // ── CUMULATIVE STORE: merge new file into existing hall data ───────
-          if (!S.production) S.production = { halls: {}, combined: [] };
-          if (!S.production.halls[hallKey]) {
-            S.production.halls[hallKey] = { records: [], ncrs: [], supDefs: [], barcodes: {}, batches: [] };
-          }
-          const hall = S.production.halls[hallKey];
-
-          // Merge barcodes (new overrides old for same code)
-          Object.assign(hall.barcodes, barcodeMap);
-
-          // Deduplicate by (barcode + prodDate-month + opDate) to avoid exact-day diffs
-          // Also AGGREGATE same product+month (sum actualProd instead of duplicating)
-          const existingKeys = new Set(hall.records.map(r =>
-            `${r.barcode}|${(r.prodDate||r.opDate||'').slice(0,7)}|${r.opDate}`
-          ));
-          const newRecs = [];
-          records.forEach(r => {
-            const k = `${r.barcode}|${(r.prodDate||r.opDate||'').slice(0,7)}|${r.opDate}`;
-            if (existingKeys.has(k)) {
-              // Accumulate into existing record (same product, same prod month, same op date)
-              const existing = hall.records.find(e =>
-                `${e.barcode}|${(e.prodDate||e.opDate||'').slice(0,7)}|${e.opDate}` === k
-              );
-              if (existing) existing.actualProd += r.actualProd;
-            } else {
-              existingKeys.add(k);
-              newRecs.push(r);
-            }
-          });
-          hall.records.push(...newRecs);
-
-          // Merge NCR (deduplicate by date+item+batch)
-          const ncrKeys = new Set(hall.ncrs.map(n => `${n.date}|${n.item}|${n.batch}`));
-          ncrs.filter(n => !ncrKeys.has(`${n.date}|${n.item}|${n.batch}`)).forEach(n => hall.ncrs.push(n));
-
-          // Merge supplier defects (deduplicate by item+issue)
-          const sdKeys = new Set(hall.supDefs.map(d => `${d.item}|${d.issue}`));
-          supDefs.filter(d => !sdKeys.has(`${d.item}|${d.issue}`)).forEach(d => hall.supDefs.push(d));
-
-          // Record this batch in history
-          const batchMonths = [...new Set(records.map(r => (r.prodDate||r.opDate||'').slice(0,7)).filter(Boolean))];
-          hall.batches.push({
-            id: uid(), fileName: file.name, importedAt: new Date().toISOString(),
-            recordCount: newRecs.length, months: batchMonths,
-            totalProd: newRecs.reduce((a,r) => a+r.actualProd,0)
-          });
-          hall.fileName = file.name;
-
-          // Build combined flat array for cross-hall analysis
-          S.production.combined = [];
-          Object.entries(S.production.halls).forEach(([hk, h]) => {
-            (h.records||[]).forEach(r => S.production.combined.push({...r, _hall: hk}));
-          });
-
-          autoPopulateMonthlyProdFromIPC();
-
-          save(true); updateBadges();
-          if (statusEl) statusEl.textContent = `✅ ${hall.records.length} تشغيلة (${newRecs.length} جديدة)`;
-          if (logEl) log.push(`🔄 الإجمالي التراكمي: ${hall.records.length} تشغيلة — ${hall.batches.length} ملف`), logEl.innerHTML = log.join('<br>');
-          toast(`✅ صالة ${hallKey==='hall1'?'المصرية':'المتخصص'}: +${newRecs.length} تشغيلة جديدة (إجمالي ${hall.records.length})`);
-
-          // Re-render production page
-          renderProductionPage();
-
-        } catch(err) {
-          if (statusEl) statusEl.textContent = '❌ خطأ';
-          toast('خطأ في القراءة: ' + err.message, 'err');
-        }
-        input.value = '';
-      };
-      rdr.readAsArrayBuffer(file);
+  function processNextFile() {
+    if (fileIdx >= files.length) {
+      autoPopulateMonthlyProdFromIPC();
+      save(true); updateBadges();
+      const hall = S.production?.halls?.[hallKey];
+      if (statusEl) statusEl.textContent = `✅ ${hall?.records?.length||0} تشغيلة إجمالية (${grandRecs} جديدة من ${files.length} ملف)`;
+      if (logEl) logEl.innerHTML = allLogs.join('<br>');
+      toast(`✅ صالة ${hallKey==='hall1'?'المصرية':'المتخصص'}: +${grandRecs} تشغيلة جديدة من ${files.length} ملف`);
+      renderProductionPage();
+      input.value = '';
+      return;
     }
+
+    const file = files[fileIdx];
+    allLogs.push(`<b style="color:var(--cyan)">📁 ${file.name} (${fileIdx+1}/${files.length}):</b>`);
+    if (statusEl) statusEl.textContent = `⏳ (${fileIdx+1}/${files.length}) ${file.name}`;
+
+    const rdr = new FileReader();
+    rdr.onerror = () => { allLogs.push(`  ❌ فشل قراءة الملف`); fileIdx++; processNextFile(); };
+    rdr.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type:'array', cellDates:true, dateNF:'YYYY-MM-DD' });
+
+        // 1. Barcode sheet
+        const barcodeMap = {};
+        const bsn = wb.SheetNames.find(s => s.toLowerCase() === 'barcode');
+        if (bsn) {
+          const brows = XLSX.utils.sheet_to_json(wb.Sheets[bsn], { header:1, defval:'', raw:false });
+          brows.slice(1).forEach(r => {
+            const bc = String(r[0]||'').trim(), nm = String(r[1]||'').trim(), gr = String(r[2]||'').trim();
+            if (bc && nm && bc !== 'Barcode') barcodeMap[bc] = { name: nm, group: gr };
+          });
+          allLogs.push(`  ✅ Barcode: ${Object.keys(barcodeMap).length} منتج`);
+        }
+
+        // 2. REPORT sheet
+        const records = [];
+        const rsn = wb.SheetNames.find(s => s.toUpperCase() === 'REPORT');
+        if (rsn) {
+          const rrows = XLSX.utils.sheet_to_json(wb.Sheets[rsn], { header:1, defval:'', raw:false });
+          let hRow = 6;
+          for (let i=0; i<Math.min(10,rrows.length); i++) {
+            const r = rrows[i].map(c => String(c||'').toLowerCase());
+            if (r.some(c => c.includes('operation') || c === 'barcode' || c.includes('actual'))) { hRow=i; break; }
+          }
+          let added=0, rej=0;
+          rrows.slice(hRow+1).forEach(row => {
+            const opDate = row[0]; if (!opDate) return;
+            const _dsParsed = parseDate(opDate); if (!_dsParsed) { rej++; return; }
+            const ds = (opDate instanceof Date) ? addOneDay(_dsParsed) : _dsParsed;
+            const bc = String(row[1]||'').trim();
+            const info = barcodeMap[bc] || {};
+            let prodName = info.name || '';
+            if (!prodName) { const raw2 = String(row[2]||'').trim(); prodName = raw2.startsWith('=') ? (bc || 'غير محدد') : (raw2 || bc || 'غير محدد'); }
+            let grp = info.group || '';
+            if (!grp) { const raw3 = String(row[3]||'').trim(); grp = raw3.startsWith('=') ? 'NA' : (raw3 || 'NA'); }
+            const toNum = v => { if (typeof v==='number') return v; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; };
+            const actualProd = toNum(row[7]), plannedProd = toNum(row[8]) || actualProd;
+            const defA=toNum(row[14]),defB=toNum(row[15]),defC=toNum(row[16]),defD=toNum(row[17]);
+            const totalDef=defA+defB+defC+defD, samples=toNum(row[13]);
+            const demerit=samples>0?(defA*100+defB*50+defC*10+defD*1)/samples:0;
+            let grade='first';
+            if(demerit>=5)grade='reject';else if(demerit>=4)grade='5th';else if(demerit>=3)grade='fourth';else if(demerit>=2)grade='third';else if(demerit>=1)grade='second';
+            let sigma=row[29]; if(sigma===undefined||sigma===null||sigma==='')sigma=null; else sigma=parseInt(String(sigma))||null;
+            const rawProd=row[5], _parsedProd=parseDate(rawProd)||ds;
+            const prodDate=(rawProd instanceof Date)?addOneDay(_parsedProd):_parsedProd;
+            records.push({ id:uid(), opDate:ds, prodDate, barcode:bc, product:prodName, group:grp,
+              batch:String(row[4]||'').trim(), avgWeight:toNum(row[6]), actualProd, plannedProd,
+              overProcess:toNum(row[10]), rework:toNum(row[11]), downtime:toNum(row[12]),
+              totalSample:samples, defA,defB,defC,defD, totalDef, demerit:Math.round(demerit*100)/100, grade, sigma });
+            added++;
+          });
+          allLogs.push(`  ✅ REPORT: ${added} تشغيلة · إنتاج: ${records.reduce((a,r)=>a+r.actualProd,0).toLocaleString('ar-EG')}${rej?` · ${rej} مرفوض`:''}`);
+        }
+
+        // 3. NCR sheet
+        const ncrs = [];
+        const nsn = wb.SheetNames.find(s => s.toUpperCase() === 'NCR');
+        if (nsn) {
+          const nrows = XLSX.utils.sheet_to_json(wb.Sheets[nsn],{header:1,defval:'',raw:false});
+          nrows.slice(1).forEach(row=>{
+            const dt=parseDate(row[2])||parseDate(row[1]);
+            const item=String(row[3]||row[2]||'').trim(), desc=String(row[5]||row[4]||'').trim(), action=String(row[6]||row[5]||'').trim(), pct=row[7]!==undefined?String(row[7]||''):'';
+            if(!dt&&!item) return;
+            ncrs.push({date:dt||'',item,batch:String(row[4]||'').trim(),desc,action,pct:pct||''});
+          });
+          if(ncrs.length) allLogs.push(`  ✅ NCR: ${ncrs.length} حالة`);
+        }
+
+        // 4. Supplier defects
+        const supDefs = [];
+        const ssn = wb.SheetNames.find(s => s.includes('عيوب')||s.includes('مستلزم'));
+        if (ssn) {
+          const srows=XLSX.utils.sheet_to_json(wb.Sheets[ssn],{header:1,defval:'',raw:false});
+          srows.slice(2).forEach(row=>{
+            const item=String(row[2]||'').trim(),issue=String(row[3]||'').trim(),action=String(row[4]||'').trim(),cause=String(row[5]||'').trim(),pct=String(row[7]||'').trim(),freq=String(row[8]||'').trim();
+            if(!item) return; supDefs.push({item,issue,action,cause,pct,freq});
+          });
+          if(supDefs.length) allLogs.push(`  ✅ عيوب المستلزمات: ${supDefs.length} حالة`);
+        }
+
+        // Cumulative merge
+        if (!S.production) S.production = {halls:{},combined:[]};
+        if (!S.production.halls[hallKey]) S.production.halls[hallKey] = {records:[],ncrs:[],supDefs:[],barcodes:{},batches:[]};
+        const hall = S.production.halls[hallKey];
+        Object.assign(hall.barcodes, barcodeMap);
+
+        const existingKeys2 = new Set(hall.records.map(r=>`${r.barcode}|${(r.prodDate||r.opDate||'').slice(0,7)}|${r.opDate}`));
+        const newRecs = [];
+        records.forEach(r=>{
+          const k=`${r.barcode}|${(r.prodDate||r.opDate||'').slice(0,7)}|${r.opDate}`;
+          if(existingKeys2.has(k)){
+            const existing=hall.records.find(e=>`${e.barcode}|${(e.prodDate||e.opDate||'').slice(0,7)}|${e.opDate}`===k);
+            if(existing) existing.actualProd+=r.actualProd;
+          } else { existingKeys2.add(k); newRecs.push(r); }
+        });
+        hall.records.push(...newRecs);
+
+        const ncrKeys=new Set(hall.ncrs.map(n=>`${n.date}|${n.item}|${n.batch}`));
+        ncrs.filter(n=>!ncrKeys.has(`${n.date}|${n.item}|${n.batch}`)).forEach(n=>hall.ncrs.push(n));
+        const sdKeys=new Set(hall.supDefs.map(d=>`${d.item}|${d.issue}`));
+        supDefs.filter(d=>!sdKeys.has(`${d.item}|${d.issue}`)).forEach(d=>hall.supDefs.push(d));
+
+        const batchMonths=[...new Set(records.map(r=>(r.prodDate||r.opDate||'').slice(0,7)).filter(Boolean))];
+        hall.batches.push({id:uid(),fileName:file.name,importedAt:new Date().toISOString(),recordCount:newRecs.length,months:batchMonths,totalProd:newRecs.reduce((a,r)=>a+r.actualProd,0)});
+        hall.fileName=file.name;
+
+        S.production.combined=[];
+        Object.entries(S.production.halls).forEach(([hk,h])=>{(h.records||[]).forEach(r=>S.production.combined.push({...r,_hall:hk}));});
+
+        grandRecs += newRecs.length;
+        allLogs.push(`  📊 <b style="color:var(--gold)">${newRecs.length} تشغيلة جديدة</b> · إجمالي الصالة: ${hall.records.length}`);
+      } catch(err) {
+        allLogs.push(`  ❌ خطأ: ${err.message}`);
+      }
+      fileIdx++;
+      processNextFile();
+    };
+    rdr.readAsArrayBuffer(file);
+  }
+
+  processNextFile();
+}
 
     function autoPopulateMonthlyProdFromIPC() {
       // Rebuild monthlyProduction from ALL IPC halls (cumulative)
@@ -10871,8 +10796,8 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
       dz.addEventListener('dragleave', () => dz.classList.remove('over'));
       dz.addEventListener('drop', e => {
         e.preventDefault(); dz.classList.remove('over');
-        const f = e.dataTransfer.files[0];
-        if (f) { try { const dt = new DataTransfer(); dt.items.add(f); _('xlsInput').files = dt.files; } catch (e) { } handleExcel({ files: [f] }); }
+        const fs = e.dataTransfer.files;
+        if (fs && fs.length) { try { _('xlsInput').files = fs; } catch (ex) {} handleExcel({ files: fs }); }
       });
     }
     const dzm = _('dropzone-manahel');
@@ -10881,8 +10806,8 @@ ${alerts.length ? `<div class="section-title">🔔 التنبيهات (${alerts.
       dzm.addEventListener('dragleave', () => dzm.classList.remove('over'));
       dzm.addEventListener('drop', e => {
         e.preventDefault(); dzm.classList.remove('over');
-        const f = e.dataTransfer.files[0];
-        if (f) { try { const dt = new DataTransfer(); dt.items.add(f); _('manahelInput').files = dt.files; } catch (e) { } handleManahelImport({ files: [f] }); }
+        const fs = e.dataTransfer.files;
+        if (fs && fs.length) { try { _('manahelInput').files = fs; } catch (ex) {} handleManahelImport({ files: fs }); }
       });
     }
 
