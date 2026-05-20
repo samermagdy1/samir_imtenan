@@ -2083,6 +2083,228 @@
       }
     }
 
+    /* ═══════ RESPONSIVE ENHANCEMENTS ═══════ */
+
+    /* ── Tablet (≤768px) ── */
+    @media(max-width:768px) {
+      html { font-size: 13px }
+
+      .main { padding: 10px }
+
+      .kpi-grid { grid-template-columns: repeat(2,1fr); gap:9px }
+
+      .g2,.g3,.g4,.g5,.g21,.g12,.g31,.g13 { grid-template-columns: 1fr }
+
+      .g { gap:10px; margin-bottom:10px }
+
+      /* topbar: hide date pill on tablet */
+      .topdate { display: none }
+
+      /* card padding tighter */
+      .card { padding: 13px }
+
+      /* filter bars stack nicely */
+      .fb { flex-direction: column; align-items: flex-start; gap: 7px }
+      .fbt { font-size: 11px; padding: 5px 11px }
+      .fsp { width: 100% }
+      .fsl,.fin { width: 100% }
+
+      /* production banner stacks */
+      .prod-banner-card { flex-wrap: wrap }
+      .pbc-gauge { width:52px; height:52px }
+      .pbc-value { font-size: 24px }
+
+      /* expiry modal fills screen */
+      .expiry-modal { max-width: 100% }
+
+      /* form grid single column */
+      .fgrid { grid-template-columns: 1fr }
+      .fg.sp2,.fg.sp3 { grid-column: span 1 }
+
+      /* section header */
+      .sh h2 { font-size: 14px }
+
+      /* stat mini cards narrower threshold */
+      .scg { grid-template-columns: repeat(auto-fill, minmax(130px,1fr)) }
+
+      /* buttons wrap */
+      .btns { gap: 6px }
+      .btn { padding: 8px 14px; font-size: 11.5px }
+
+      /* drill panel */
+      .drill-panel { right:0; padding:12px 14px }
+
+      /* dropzone less padding */
+      .dropzone { padding: 32px 16px }
+      .dz-ico { font-size: 44px }
+      .dz-title { font-size: 14px }
+    }
+
+    /* ── Mobile (≤480px) ── */
+    @media(max-width:480px) {
+      :root {
+        --top: 52px;
+      }
+
+      html { font-size: 12.5px }
+
+      .main { padding: 8px }
+
+      /* topbar compact */
+      .top { padding: 0 10px; gap:6px }
+      #pgTitle { font-size: 12px }
+      .ib { width:28px; height:28px; font-size:12px }
+      .top-r { gap: 4px }
+
+      /* brand compact */
+      .brand { padding: 12px 10px; gap: 8px }
+      .brand-orb { width:34px; height:34px; font-size:18px; border-radius:9px }
+      .brand-text .t1 { font-size: 11.5px }
+
+      /* sidebar nav items bigger tap area */
+      .ni { padding: 10px 11px; font-size: 12px }
+
+      /* KPI grid: 2 cols on phone */
+      .kpi-grid { grid-template-columns: 1fr 1fr; gap:8px }
+      .kpi { padding: 12px 13px }
+      .kpi-value { font-size: 22px }
+      .kpi-label { font-size: 9px }
+      .kpi-ico { font-size: 18px; margin-bottom:5px }
+
+      /* all grids → single col */
+      .g,.g1,.g2,.g3,.g4,.g5,.g21,.g12,.g31,.g13 {
+        grid-template-columns: 1fr !important;
+        gap: 8px;
+        margin-bottom: 8px
+      }
+
+      /* cards */
+      .card { padding: 11px; border-radius: 10px }
+      .card-title { font-size: 12px }
+      .card-sub { font-size: 10px }
+
+      /* section headers */
+      .sh { flex-wrap: wrap; gap:6px; margin-bottom:10px }
+      .sh h2 { font-size: 13px }
+      .sh-line { display:none }
+
+      /* filter bars */
+      .fb { padding: 8px 10px; gap:6px }
+      .fb-label { font-size: 10.5px }
+      .fbt { font-size: 10.5px; padding:4px 10px }
+      .fsl,.fin { font-size: 11px }
+      .f-count { font-size: 10px; padding:3px 9px }
+
+      /* active filter tags */
+      .af-tag { font-size: 10px; padding: 3px 8px }
+
+      /* table horizontal scroll always */
+      .tw { -webkit-overflow-scrolling: touch }
+      th { font-size: 10px; padding: 8px 9px }
+      td { font-size: 11px; padding: 7px 9px }
+
+      /* production banner */
+      .prod-banner-card { flex-direction: column; padding:12px 14px }
+      .pbc-ico { width:42px; height:42px; font-size:22px; border-radius:10px }
+      .pbc-value { font-size: 22px }
+      .pbc-label { font-size: 9.5px }
+      .pbc-gauge { width:48px; height:48px; align-self:flex-start }
+      .pbc-gauge-val { font-size: 10.5px }
+
+      /* insight cards */
+      .insight { padding: 10px 12px; gap:9px }
+      .insight-ico { font-size: 19px }
+      .insight-title { font-size: 11.5px }
+      .insight-body { font-size: 10.5px }
+      .insight-val { font-size: 13px }
+
+      /* buttons */
+      .btn { padding: 8px 12px; font-size: 11px; gap:5px }
+      .btns { flex-direction: column; gap:6px }
+      .btns .btn { width: 100%; justify-content: center }
+
+      /* modal fills screen */
+      .mbg { padding: 10px }
+      .modal { max-width: 100%; border-radius: 16px }
+      .modal-head { padding: 14px 16px }
+      .modal-head h3 { font-size: 13.5px }
+      .modal-body { padding: 14px 16px }
+      .modal-foot { padding: 12px 16px; flex-wrap: wrap }
+      .modal-foot .btn { flex: 1; min-width: 100px }
+
+      /* stat mini cards */
+      .scg { grid-template-columns: 1fr 1fr }
+      .sc { padding: 11px }
+      .sc-value { font-size: 17px }
+
+      /* dropzone */
+      .dropzone { padding: 24px 14px; border-radius: 16px }
+      .dz-ico { font-size: 38px; margin-bottom:10px }
+      .dz-title { font-size: 13px }
+      .dz-sub { font-size: 11px }
+
+      /* form grid */
+      .fgrid { grid-template-columns: 1fr }
+      .fg.sp2,.fg.sp3 { grid-column: span 1 }
+      .fi,.fs,.fta { font-size: 12px; padding: 8px 11px }
+      .fl { font-size: 10.5px }
+
+      /* empty state */
+      .es { padding: 40px 16px }
+      .es-ico { font-size: 44px }
+      .es h3 { font-size: 15px }
+      .es p { font-size: 12px }
+
+      /* tags & risk badges compact */
+      .tag,.risk { font-size: 10px; padding: 2px 7px }
+
+      /* toast stays bottom-left but narrower */
+      #toast-area { left:10px; bottom:14px }
+      .toast { min-width: 180px; max-width: calc(100vw - 24px); font-size: 11.5px }
+
+      /* backup storage grid */
+      .sbg { grid-template-columns: 1fr 1fr }
+
+      /* prod card compact */
+      .prod-card { padding: 12px }
+      .prod-card-nm { font-size: 12px }
+
+      /* topdate hidden */
+      .topdate { display: none }
+
+      /* expiry modal */
+      .expiry-modal { border-radius: 14px }
+      .exp-kpi-row { gap: 7px }
+      .exp-kpi { min-width: 80px; padding: 8px 10px }
+      .exp-kpi-val { font-size: 18px }
+      .exp-kpi-lbl { font-size: 8.5px }
+
+      /* rec filter rows */
+      .rec-filter-row { flex-direction: column; align-items: flex-start; gap:6px; padding:9px 12px }
+      .rec-date-inp { width: 100% }
+
+      /* drill panel */
+      .drill-panel { padding: 10px 12px }
+      .drill-head h3 { font-size: 13px }
+
+      /* groups page */
+      .grp-card { padding: 12px }
+
+      /* heatmap scrollable */
+      .heatmap-wrap { -webkit-overflow-scrolling: touch }
+    }
+
+    /* ── Small phones (≤380px) ── */
+    @media(max-width:380px) {
+      .kpi-grid { grid-template-columns: 1fr }
+      .kpi-value { font-size: 20px }
+      .scg { grid-template-columns: 1fr }
+      .sbg { grid-template-columns: 1fr }
+      .btns { gap: 5px }
+      .brand-text .t2 { display: none }
+      .main { padding: 6px }
+    }
+
     @media print {
 
       .nav,
@@ -4356,17 +4578,27 @@
         canvasEl.width = w; canvasEl.height = h;
         ctx.clearRect(0, 0, w, h);
         if (!data || data.length < 2) return;
+        // Resolve CSS variable to a real color string usable by Canvas
+        const CSS_VAR_MAP = {
+          'var(--gold)': '#f5b731', 'var(--gold2)': '#d9920c', 'var(--gold3)': '#ffd166',
+          'var(--cyan)': '#22d3ee', 'var(--blue)': '#3b82f6', 'var(--blue2)': '#60a5fa',
+          'var(--em)': '#10b981',   'var(--em2)': '#34d399',  'var(--red)': '#ef4444',
+          'var(--red2)': '#f87171', 'var(--violet)': '#8b5cf6','var(--rose)': '#f43f5e',
+          'var(--amber)': '#f59e0b','var(--sky)': '#0ea5e9',   'var(--lime)': '#84cc16',
+          'var(--orange)': '#fb923c','var(--txt2)': '#94a3b8', 'var(--txt3)': '#475569',
+        };
+        const resolvedColor = CSS_VAR_MAP[color] || (color.startsWith('var(') ? '#f5b731' : color);
         const max = Math.max(...data), min = Math.min(...data);
         const range = max - min || 1;
         const step = w / (data.length - 1);
         const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, color + '55'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+        grad.addColorStop(0, resolvedColor + '55'); grad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.beginPath();
         data.forEach((v, i) => {
           const x = i * step, y = h - (v - min) / range * h * .8 - h * .1;
           i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
-        ctx.strokeStyle = color; ctx.lineWidth = 1.8;
+        ctx.strokeStyle = resolvedColor; ctx.lineWidth = 1.8;
         ctx.stroke();
         // Fill
         ctx.lineTo((data.length - 1) * step, h); ctx.lineTo(0, h);
@@ -4393,11 +4625,11 @@
     /* ── Generic period filter for a records array ── */
     function applyPeriodFilter(records, pf) {
       if (pf.mode === 'all' || pf.mode === 'cumulative') return records;
-      // Use prodDate (production month) as primary key — return is attributed to production month
-      const getPM = r => r.prodDate?.slice(0,7) || r.date?.slice(0,7) || '';
-      if (pf.mode === 'monthly' && pf.month) return records.filter(r => getPM(r) === pf.month);
-      if (pf.mode === 'yearly' && pf.year) return records.filter(r => getPM(r).startsWith(pf.year));
-      if (pf.mode === 'multi' && pf.multi.length) return records.filter(r => pf.multi.includes(getPM(r)));
+      // Filter by receipt/record date (x.date) — matches what the month selector shows
+      const getDateKey = r => r.date?.slice(0,7) || '';
+      if (pf.mode === 'monthly' && pf.month) return records.filter(r => getDateKey(r) === pf.month);
+      if (pf.mode === 'yearly' && pf.year) return records.filter(r => getDateKey(r).startsWith(pf.year));
+      if (pf.mode === 'multi' && pf.multi.length) return records.filter(r => pf.multi.includes(getDateKey(r)));
       if (pf.mode === 'custom' && pf.from && pf.to) return records.filter(r => r.date && r.date >= pf.from && r.date <= pf.to);
       return records;
     }
@@ -4724,8 +4956,29 @@
       if (!hasPeriodSel) { strip.innerHTML = ''; strip.style.display = 'none'; return; }
       strip.style.display = '';
 
-      // ── إجمالي المستلمة = كل السجلات
-      const totalReceived = S.records.reduce((a, x) => a + (x.qty || 1), 0);
+      // ── إجمالي المستلمة في الفترة المحددة = السجلات المفلترة
+      const totalReceived = r.reduce((a, x) => a + (x.qty || 1), 0);
+
+      // ── تفاصيل كل شهر في وضع multi
+      let perMonthBreakdown = '';
+      if (isMultiMode && GFP.multi.length > 1) {
+        const sortedMonths = [...GFP.multi].sort();
+        perMonthBreakdown = `
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-size:9.5px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">كميات المرتجعات لكل شهر</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px">
+              ${sortedMonths.map(m => {
+                const [y, mo] = m.split('-');
+                const mQty = r.filter(x => (x.date||'').slice(0,7) === m).reduce((a,x) => a+(x.qty||1), 0);
+                return `<div style="background:rgba(245,183,49,.06);border:1px solid rgba(245,183,49,.15);border-radius:8px;padding:8px 10px;text-align:center">
+                  <div style="font-size:10px;font-weight:700;color:var(--txt2)">${MN_SHORT[+mo-1]} ${y}</div>
+                  <div style="font-size:18px;font-weight:900;color:var(--gold);line-height:1.2">${mQty.toLocaleString('ar-EG')}</div>
+                  <div style="font-size:9px;color:var(--txt3)">وحدة</div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      }
 
       // ── مرتجع إنتاج الفترة
       const totalProdPeriod = S.records.reduce((a, x) => {
@@ -4766,7 +5019,7 @@
             <span style="font-size:16px">📊</span>
             <div>
               <div style="font-size:12px;font-weight:900;color:var(--txt)">تحليل المرتجعات · ${periodLbl}</div>
-              <div style="font-size:10px;color:var(--txt3)">إجمالي المستلمة مقابل مرتجع إنتاج الفترة المحددة</div>
+              <div style="font-size:10px;color:var(--txt3)">إجمالي المرتجعات في الفترة المحددة مقابل مرتجع إنتاج الفترة</div>
             </div>
           </div>
           <div style="background:var(--bg4);border-radius:20px;padding:4px 12px;border:1px solid ${diffColor};font-size:10.5px;font-weight:700;color:${diffColor}">
@@ -4781,8 +5034,8 @@
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
               <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,183,49,.12);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📥</div>
               <div>
-                <div style="font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.5px">إجمالي المستلمة</div>
-                <div style="font-size:9px;color:var(--txt3)">كل السجلات في قاعدة البيانات</div>
+                <div style="font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.5px">إجمالي المرتجعات في الفترة</div>
+                <div style="font-size:9px;color:var(--txt3)">${periodLbl}</div>
               </div>
             </div>
             <div style="font-size:28px;font-weight:900;color:var(--gold);line-height:1;margin-bottom:6px">${totalReceived.toLocaleString('ar-EG')}</div>
@@ -4812,12 +5065,14 @@
 
         </div>
 
+        ${perMonthBreakdown}
+
         <div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
           <span style="font-size:9.5px;color:var(--txt4);flex-shrink:0">ℹ️</span>
           <span style="font-size:9.5px;color:var(--txt4)">
-            <b style="color:var(--gold)">إجمالي المستلمة:</b> جميع وحدات المرتجعات الموجودة في قاعدة البيانات بصرف النظر عن تاريخ استلامها أو إنتاجها.
+            <b style="color:var(--gold)">إجمالي المرتجعات في الفترة:</b> الوحدات التي تاريخ استلامها ضمن ${periodLbl}.
             &nbsp;·&nbsp;
-            <b style="color:var(--red2)">مرتجع إنتاج الفترة:</b> الوحدات التي يقع تاريخ إنتاجها ضمن الفترة المحددة (${periodLbl})، سواء استُلمت في نفس الفترة أو لاحقاً.
+            <b style="color:var(--red2)">مرتجع إنتاج الفترة:</b> الوحدات التي يقع تاريخ إنتاجها ضمن ${periodLbl}، سواء استُلمت في نفس الفترة أو لاحقاً.
           </span>
         </div>
       </div>`;
@@ -4924,9 +5179,6 @@
     function renderProdSummaryBanner(r) {
       const banner = _('prod-summary-banner'); if (!banner) return;
 
-      // ── إجمالي المستلمة = دائماً كل السجلات (بغض النظر عن أي فلتر)
-      const totalReturned = S.records.reduce((a, x) => a + (x.qty || 1), 0);
-
       const totalProd = getTotalProdForPeriod(GFP);
       const hasProd = totalProd > 0;
       const periodLbl = periodLabel(GFP);
@@ -4937,6 +5189,11 @@
       const isYearMode   = GFP.mode === 'yearly'  && GFP.year;
       const isCustomMode = GFP.mode === 'custom'  && GFP.from && GFP.to;
       const hasPeriodSel = isMonthMode || isMultiMode || isYearMode || isCustomMode;
+
+      // ── إجمالي المستلمة: إذا كان هناك فلتر فترة → فقط السجلات المستلمة في تلك الفترة، وإلا كل السجلات
+      // نستخدم r (المفلتر) لحساب الإجمالي ضمن الفترة
+      const totalReturned = r.reduce((a, x) => a + (x.qty || 1), 0);
+      const totalReturnedAll = S.records.reduce((a, x) => a + (x.qty || 1), 0);
 
       // ── دالة مساعدة: هل prodMonth ضمن الفترة المحددة؟
       function isProdMonthInPeriod(pm) {
@@ -4958,7 +5215,25 @@
         if (totalProd > 0) retByProdMonthPct = (retByProdMonth / totalProd * 100);
       }
 
-      // نسبة المرتجع من الإنتاج — مبنية على إجمالي المستلمة vs إنتاج الفترة
+      // ── تفاصيل كل شهر في وضع multi أو yearly أو custom
+      let monthlyBreakdownHtml = '';
+      if (isMultiMode && GFP.multi.length > 1) {
+        const sortedMonths = [...GFP.multi].sort();
+        monthlyBreakdownHtml = `
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+            <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">تفاصيل الأشهر المحددة</div>
+            ${sortedMonths.map(m => {
+              const [y, mo] = m.split('-');
+              const mRet = r.filter(x => (x.date||'').slice(0,7) === m).reduce((a,x) => a+(x.qty||1), 0);
+              return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(245,183,49,.04);border-radius:6px;border:1px solid rgba(245,183,49,.1)">
+                <span style="font-size:10px;color:var(--txt2)">${MN_SHORT[+mo-1]} ${y}</span>
+                <span style="font-size:11px;font-weight:900;color:var(--gold)">${mRet.toLocaleString('ar-EG')} <span style="font-size:9px;font-weight:400;color:var(--txt3)">وحدة</span></span>
+              </div>`;
+            }).join('')}
+          </div>`;
+      }
+
+      // نسبة المرتجع من الإنتاج — مبنية على مرتجع الفترة vs إنتاج الفترة
       const returnRate = hasProd ? (totalReturned / totalProd * 100) : null;
 
       // Monthly prod data for mini chart
@@ -5017,15 +5292,15 @@
       <div class="prod-banner-card" style="border-top:2px solid var(--gold);padding:14px 16px">
         <div class="pbc-ico" style="background:rgba(245,183,49,.08);align-self:flex-start">📦</div>
         <div class="pbc-body" style="flex:1;min-width:0">
-          <div class="pbc-label" style="color:var(--gold);margin-bottom:10px">المرتجعات</div>
+          <div class="pbc-label" style="color:var(--gold);margin-bottom:10px">المرتجعات · ${periodLbl}</div>
 
-          <!-- الصف الأول: إجمالي المستلمة (كل السجلات) -->
+          <!-- إجمالي المستلمة في الفترة المحددة -->
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(245,183,49,.07);border-radius:8px;margin-bottom:6px;border:1px solid rgba(245,183,49,.18)">
             <div style="display:flex;align-items:center;gap:7px">
               <span style="font-size:15px">📥</span>
               <div>
-                <div style="font-size:9.5px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">إجمالي المستلمة</div>
-                <div style="font-size:9px;color:var(--txt3)">كل السجلات المستلمة حتى الآن</div>
+                <div style="font-size:9.5px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px">إجمالي المرتجعات في الفترة</div>
+                <div style="font-size:9px;color:var(--txt3)">${periodLbl}</div>
               </div>
             </div>
             <div style="text-align:left">
@@ -5034,8 +5309,11 @@
             </div>
           </div>
 
-          <!-- الصف الثاني: المرتجعات التي تاريخ إنتاجها ضمن الفترة -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(239,68,68,.07);border-radius:8px;border:1px solid rgba(239,68,68,.18)">
+          <!-- تفاصيل الأشهر عند اختيار أكثر من شهر -->
+          ${monthlyBreakdownHtml}
+
+          <!-- المرتجعات التي تاريخ إنتاجها ضمن الفترة -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(239,68,68,.07);border-radius:8px;border:1px solid rgba(239,68,68,.18);${monthlyBreakdownHtml?'margin-top:6px':''}">
             <div style="display:flex;align-items:center;gap:7px">
               <span style="font-size:15px">🏭</span>
               <div>
@@ -5054,7 +5332,7 @@
           <!-- ملاحظة توضيحية -->
           <div style="margin-top:7px;font-size:9px;color:var(--txt4);display:flex;align-items:flex-start;gap:4px">
             <span style="flex-shrink:0">ℹ️</span>
-            <span><b style="color:var(--gold)">إجمالي المستلمة:</b> كل الوحدات الموجودة في قاعدة البيانات · <b style="color:var(--red2)">مرتجع إنتاج الفترة:</b> الوحدات التي تاريخ إنتاجها = ${periodLbl}</span>
+            <span><b style="color:var(--gold)">إجمالي المرتجعات في الفترة:</b> الوحدات المستلمة في ${periodLbl} · <b style="color:var(--red2)">مرتجع إنتاج الفترة:</b> الوحدات التي تاريخ إنتاجها = ${periodLbl}</span>
           </div>
         </div>
         <div class="kpi-glow" style="background:var(--gold)"></div>
@@ -5064,7 +5342,7 @@
         <div class="pbc-ico" style="background:rgba(245,183,49,.08)">📦</div>
         <div class="pbc-body">
           <div class="pbc-label" style="color:var(--gold)">إجمالي المرتجعات المستلمة</div>
-          <div class="pbc-value" style="color:var(--gold)">${totalReturned.toLocaleString('ar-EG')}</div>
+          <div class="pbc-value" style="color:var(--gold)">${totalReturnedAll.toLocaleString('ar-EG')}</div>
           <div class="pbc-sub">وحدة مرتجعة مستلمة · كل الفترات</div>
           ${hasProd && prodByMonth.length > 1 ? barsHtml : ''}
         </div>
@@ -5100,9 +5378,9 @@
     }
 
     function renderKPIs(r) {
-      // ── إجمالي المستلمة = دائماً كل السجلات
-      const tot = S.records.reduce((a, x) => a + (x.qty || 1), 0);
-      const mt = Analytics.monthlyTotals(S.records);
+      // ── إجمالي المستلمة = السجلات المفلترة (الفترة المحددة)
+      const tot = r.reduce((a, x) => a + (x.qty || 1), 0);
+      const mt = Analytics.monthlyTotals(r);
       const vals = mt.map(m => m[1]);
       const change = Analytics.kpiChange(S.records);
       const avg = Analytics.mean(vals);
@@ -5132,14 +5410,25 @@
         }, 0);
       }
 
+      // ── تفاصيل كل شهر في وضع multi
+      let monthSubHtml = hasPeriodSel ? `مرتجعات ${periodLbl}` : 'كل الوحدات المستلمة في قاعدة البيانات';
+      if (isMultiMode && GFP.multi.length > 1) {
+        const sortedM = [...GFP.multi].sort();
+        monthSubHtml = sortedM.map(m => {
+          const [y, mo] = m.split('-');
+          const mQty = r.filter(x => (x.date||'').slice(0,7) === m).reduce((a,x) => a+(x.qty||1), 0);
+          return `${MN_SHORT[+mo-1]} ${y}: ${mQty.toLocaleString('ar-EG')}`;
+        }).join(' · ');
+      }
+
       const periodLbl = periodLabel(GFP);
 
       const kpis = [
         {
           ico: '📥',
-          label: 'إجمالي المرتجعات المستلمة',
+          label: hasPeriodSel ? `إجمالي المرتجعات · ${periodLbl}` : 'إجمالي المرتجعات المستلمة',
           value: fmt(tot),
-          sub: 'كل الوحدات المستلمة في قاعدة البيانات',
+          sub: monthSubHtml,
           c: 'var(--gold)', change, sparkData: vals
         },
         hasPeriodSel
