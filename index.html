@@ -5215,22 +5215,144 @@
         if (totalProd > 0) retByProdMonthPct = (retByProdMonth / totalProd * 100);
       }
 
-      // ── تفاصيل كل شهر في وضع multi أو yearly أو custom
+      // ── تفاصيل كل شهر في وضع multi أو yearly أو custom أو monthly
       let monthlyBreakdownHtml = '';
-      if (isMultiMode && GFP.multi.length > 1) {
-        const sortedMonths = [...GFP.multi].sort();
-        monthlyBreakdownHtml = `
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
-            <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">تفاصيل الأشهر المحددة</div>
-            ${sortedMonths.map(m => {
-              const [y, mo] = m.split('-');
-              const mRet = r.filter(x => (x.date||'').slice(0,7) === m).reduce((a,x) => a+(x.qty||1), 0);
-              return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(245,183,49,.04);border-radius:6px;border:1px solid rgba(245,183,49,.1)">
-                <span style="font-size:10px;color:var(--txt2)">${MN_SHORT[+mo-1]} ${y}</span>
-                <span style="font-size:11px;font-weight:900;color:var(--gold)">${mRet.toLocaleString('ar-EG')} <span style="font-size:9px;font-weight:400;color:var(--txt3)">وحدة</span></span>
+      // بناء قائمة الشهور المحددة
+      function _getSelectedMonths() {
+        if (isMonthMode)  return [GFP.month];
+        if (isMultiMode)  return [...GFP.multi].sort();
+        if (isYearMode) {
+          // كل شهور السنة التي بها بيانات
+          const yr = GFP.year;
+          const allM = new Set([
+            ...S.records.map(x => (x.date||'').slice(0,7)).filter(m => m.startsWith(yr)),
+            ...S.records.map(x => getRecProdMonth(x)).filter(m => m && m.startsWith(yr)),
+          ]);
+          return [...allM].sort();
+        }
+        if (isCustomMode) {
+          const from = GFP.from.slice(0,7), to = GFP.to.slice(0,7);
+          const allM = new Set([
+            ...S.records.map(x => (x.date||'').slice(0,7)).filter(m => m && m >= from && m <= to),
+            ...S.records.map(x => getRecProdMonth(x)).filter(m => m && m >= from && m <= to),
+          ]);
+          return [...allM].sort();
+        }
+        return [];
+      }
+
+      if (hasPeriodSel) {
+        const selMonths = _getSelectedMonths();
+
+        // احسب إجمالي الإنتاج لكل شهر من بيانات IPC أو اليدوية
+        function _getProdForMonth(m) {
+          const cfg2 = S.groupConfig || buildDefaultGroupConfig();
+          let manual = 0;
+          cfg2.forEach(g => { manual += (S.monthlyProduction[g.id]||{})[m] || 0; });
+          if (manual > 0) return manual;
+          let ipc = 0;
+          if (S.production?.halls) {
+            Object.values(S.production.halls).forEach(h => {
+              (h?.records||[]).forEach(rec => {
+                if ((rec.prodDate||rec.opDate||'').startsWith(m)) ipc += (rec.actualProd||0);
+              });
+            });
+          }
+          return ipc;
+        }
+
+        if (selMonths.length >= 1) {
+          // للشهر الواحد نعرض تفصيلاً مختصراً، لأكثر من شهر نعرض جدول
+          const rows = selMonths.map(m => {
+            const [y, mo] = m.split('-');
+            const mLabel = `${MN[+mo-1]} ${y}`;
+            // مرتجعات الاستلام: تاريخ date ضمن هذا الشهر
+            const mRetRecv = S.records.reduce((a,x) => (x.date||'').slice(0,7) === m ? a+(x.qty||1) : a, 0);
+            // مرتجعات الإنتاج: تاريخ إنتاج المنتج = هذا الشهر
+            const mRetProd = S.records.reduce((a,x) => {
+              const pm = getRecProdMonth(x);
+              return pm === m ? a+(x.qty||1) : a;
+            }, 0);
+            const mProd = _getProdForMonth(m);
+            const rate = mProd > 0 && mRetProd > 0 ? (mRetProd/mProd*100).toFixed(1) : null;
+            const rateClr = rate ? (parseFloat(rate)<3?'var(--em)':parseFloat(rate)<8?'var(--amber)':'var(--red)') : 'var(--txt4)';
+            return { m, mLabel, mRetRecv, mRetProd, mProd, rate, rateClr };
+          });
+
+          if (selMonths.length === 1) {
+            // شهر واحد: عرض مختصر بدون جدول
+            const row = rows[0];
+            monthlyBreakdownHtml = `
+              <div style="margin-top:7px;padding:7px 10px;background:rgba(34,211,238,.05);border-radius:8px;border:1px solid rgba(34,211,238,.15)">
+                <div style="font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📅 تفاصيل ${row.mLabel}</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+                  <div style="background:rgba(245,183,49,.07);border-radius:6px;padding:5px 4px">
+                    <div style="font-size:9px;color:var(--txt3);margin-bottom:2px">📥 استُلم</div>
+                    <div style="font-size:14px;font-weight:900;color:var(--gold)">${row.mRetRecv.toLocaleString('ar-EG')}</div>
+                  </div>
+                  <div style="background:rgba(239,68,68,.07);border-radius:6px;padding:5px 4px">
+                    <div style="font-size:9px;color:var(--txt3);margin-bottom:2px">🏭 إنتاج هذا الشهر</div>
+                    <div style="font-size:14px;font-weight:900;color:var(--red2)">${row.mRetProd.toLocaleString('ar-EG')}</div>
+                  </div>
+                  <div style="background:rgba(34,211,238,.06);border-radius:6px;padding:5px 4px">
+                    <div style="font-size:9px;color:var(--txt3);margin-bottom:2px">📊 نسبة الإنتاج</div>
+                    <div style="font-size:14px;font-weight:900;color:${row.rateClr}">${row.rate ? row.rate+'%' : '—'}</div>
+                  </div>
+                </div>
               </div>`;
-            }).join('')}
-          </div>`;
+          } else {
+            // عدة أشهر: جدول تفصيلي
+            monthlyBreakdownHtml = `
+              <div style="margin-top:8px">
+                <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">📋 تفاصيل الأشهر المحددة</div>
+                <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:10px">
+                  <thead>
+                    <tr style="background:rgba(255,255,255,.04)">
+                      <th style="padding:4px 7px;text-align:right;color:var(--txt3);font-weight:700;border-bottom:1px solid var(--border)">الشهر</th>
+                      <th style="padding:4px 5px;text-align:center;color:var(--gold);font-weight:700;border-bottom:1px solid var(--border)">📥 استُلم</th>
+                      <th style="padding:4px 5px;text-align:center;color:var(--red2);font-weight:700;border-bottom:1px solid var(--border)">🏭 إنتاج الشهر</th>
+                      <th style="padding:4px 5px;text-align:center;color:var(--cyan);font-weight:700;border-bottom:1px solid var(--border)">⚙️ الإنتاج الكلي</th>
+                      <th style="padding:4px 5px;text-align:center;color:var(--txt2);font-weight:700;border-bottom:1px solid var(--border)">📊 النسبة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rows.map((row,i) => `
+                      <tr style="border-bottom:1px solid var(--border);${i%2===0?'background:rgba(255,255,255,.015)':''}">
+                        <td style="padding:5px 7px;font-weight:700;color:var(--txt2);white-space:nowrap">${row.mLabel}</td>
+                        <td style="padding:5px;text-align:center">
+                          <span style="font-weight:900;color:${row.mRetRecv>0?'var(--gold)':'var(--txt4)'}">${row.mRetRecv>0?row.mRetRecv.toLocaleString('ar-EG'):'—'}</span>
+                        </td>
+                        <td style="padding:5px;text-align:center">
+                          <span style="font-weight:900;color:${row.mRetProd>0?'var(--red2)':'var(--txt4)'}">${row.mRetProd>0?row.mRetProd.toLocaleString('ar-EG'):'—'}</span>
+                        </td>
+                        <td style="padding:5px;text-align:center">
+                          <span style="color:${row.mProd>0?'var(--cyan)':'var(--txt4)'}">${row.mProd>0?row.mProd.toLocaleString('ar-EG'):'—'}</span>
+                        </td>
+                        <td style="padding:5px;text-align:center">
+                          ${row.rate ? `<span style="font-size:11px;font-weight:900;color:${row.rateClr}">${row.rate}%</span>` : '<span style="color:var(--txt4)">—</span>'}
+                        </td>
+                      </tr>`).join('')}
+                    <tr style="background:rgba(255,255,255,.04);border-top:1px solid var(--border2);font-weight:900">
+                      <td style="padding:5px 7px;color:var(--gold)">الإجمالي</td>
+                      <td style="padding:5px;text-align:center;color:var(--gold)">${rows.reduce((a,x)=>a+x.mRetRecv,0).toLocaleString('ar-EG')}</td>
+                      <td style="padding:5px;text-align:center;color:var(--red2)">${rows.reduce((a,x)=>a+x.mRetProd,0).toLocaleString('ar-EG')}</td>
+                      <td style="padding:5px;text-align:center;color:var(--cyan)">${rows.reduce((a,x)=>a+x.mProd,0).toLocaleString('ar-EG')}</td>
+                      <td style="padding:5px;text-align:center">
+                        ${(()=>{const tRP=rows.reduce((a,x)=>a+x.mRetProd,0),tP=rows.reduce((a,x)=>a+x.mProd,0);const tr=tP>0&&tRP>0?(tRP/tP*100).toFixed(1):null;const tc=tr?(parseFloat(tr)<3?'var(--em)':parseFloat(tr)<8?'var(--amber)':'var(--red)'):'var(--txt4)';return tr?`<span style="font-size:12px;font-weight:900;color:${tc}">${tr}%</span>`:'<span style="color:var(--txt4)">—</span>'})()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                </div>
+                <div style="margin-top:5px;font-size:8.5px;color:var(--txt4)">
+                  📥 <b style="color:var(--gold)">استُلم:</b> تاريخ استلام المرتجع ضمن الشهر · 
+                  🏭 <b style="color:var(--red2)">إنتاج الشهر:</b> وحدات أُنتجت في هذا الشهر وعادت في أي وقت · 
+                  📊 <b style="color:var(--cyan)">النسبة:</b> مرتجع إنتاج الشهر ÷ إجمالي إنتاجه
+                </div>
+              </div>`;
+          }
+        }
       }
 
       // نسبة المرتجع من الإنتاج — مبنية على مرتجع الفترة vs إنتاج الفترة
