@@ -5397,6 +5397,8 @@
       const isCustomMode = GFP.mode === 'custom'  && GFP.from && GFP.to;
       const hasPeriodSel = isMonthMode || isMultiMode || isYearMode || isCustomMode;
 
+      const periodLbl = periodLabel(GFP);
+
       // ── مرتجعات إنتاج الفترة المحددة
       let retByProdMonthTotal = 0;
       if (hasPeriodSel) {
@@ -5420,8 +5422,6 @@
           return `${MN_SHORT[+mo-1]} ${y}: ${mQty.toLocaleString('ar-EG')}`;
         }).join(' · ');
       }
-
-      const periodLbl = periodLabel(GFP);
 
       const kpis = [
         {
@@ -10667,39 +10667,39 @@ function handleIPCImport(input, hallKey) {
        3. Fallback: return date YYYY-MM
        CRITICAL: we always compare YYYY-MM strings only, never use Date() to avoid TZ shift. */
     function getRecProdMonth(rec) {
-      // Rule 1: use prodDate directly — slice to 7 chars gives YYYY-MM
+      // Rule 1: use prodDate directly if explicitly set
       if (rec.prodDate && rec.prodDate.length >= 7) return rec.prodDate.slice(0, 7);
 
-      // Rule 2: find nearest IPC month
+      // Rule 2: find matching IPC production record by barcode or product name
       const retMonth = rec.date ? rec.date.slice(0, 7) : null;
       if (S.production && S.production.halls && retMonth) {
         const pbc = String(rec.barcode||'').trim().toLowerCase();
         const pnm = (rec.product||'').toLowerCase();
-        const ipcMonths = new Set();
-        Object.values(S.production.halls).forEach(h => {
-          if (!h || !h.records) return;
-          h.records.forEach(r => {
-            const rbc = String(r.barcode||'').trim().toLowerCase();
-            const rnm = (r.product||'').toLowerCase();
-            if ((pbc && rbc === pbc) || (pnm && rnm === pnm)) {
-              const m = (r.prodDate||r.opDate||'').slice(0,7);
-              if (m) ipcMonths.add(m);
-            }
+        if (pbc || pnm) {
+          const ipcMonths = new Set();
+          Object.values(S.production.halls).forEach(h => {
+            if (!h || !h.records) return;
+            h.records.forEach(r => {
+              const rbc = String(r.barcode||'').trim().toLowerCase();
+              const rnm = (r.product||'').toLowerCase();
+              if ((pbc && rbc && rbc === pbc) || (pnm && rnm && rnm === pnm)) {
+                const m = (r.prodDate||r.opDate||'').slice(0,7);
+                if (m) ipcMonths.add(m);
+              }
+            });
           });
-        });
-        if (ipcMonths.size > 0) {
-          const sorted = [...ipcMonths].sort();
-          // Pick closest month that is <= return month (product must be produced before return)
-          let best = sorted[sorted.length-1]; // default: most recent
-          for (let i = sorted.length-1; i >= 0; i--) {
-            if (sorted[i] <= retMonth) { best = sorted[i]; break; }
+          if (ipcMonths.size > 0) {
+            const sorted = [...ipcMonths].sort();
+            let best = sorted[sorted.length-1];
+            for (let i = sorted.length-1; i >= 0; i--) {
+              if (sorted[i] <= retMonth) { best = sorted[i]; break; }
+            }
+            return best;
           }
-          return best;
         }
       }
 
-      // Rule 3: fallback to return month
-      if (rec.date && rec.date.length >= 7) return rec.date.slice(0, 7);
+      // No confirmed production date — return null (do NOT fallback to receipt date)
       return null;
     }
     function monthDiff(from, to) {
