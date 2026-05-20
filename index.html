@@ -5279,76 +5279,124 @@
             return { m, mLabel, mRetRecv, mRetProd, mProd, rate, rateClr };
           });
 
+          /* ── CSS للجدول التفصيلي ── */
+          const mbTableStyle = `
+            <style>
+              .mb-detail-wrap { margin-top:10px; }
+              .mb-detail-title { font-size:9.5px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px; }
+              .mb-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid var(--border2); }
+              .mb-table { width:100%;border-collapse:collapse;font-size:11px;min-width:340px; }
+              .mb-table thead tr { background:linear-gradient(135deg,var(--bg3),var(--bg4)); }
+              .mb-table th { padding:8px 10px;font-weight:800;font-size:9.5px;letter-spacing:.3px;border-bottom:2px solid var(--border2);white-space:nowrap; }
+              .mb-table th.t-right { text-align:right; }
+              .mb-table th.t-center { text-align:center; }
+              .mb-table td { padding:7px 10px;border-bottom:1px solid var(--border); }
+              .mb-table td.t-center { text-align:center; }
+              .mb-table tbody tr:last-child td { border-bottom:none; }
+              .mb-table tbody tr:nth-child(even) { background:rgba(255,255,255,.018); }
+              .mb-table tbody tr:hover { background:rgba(245,183,49,.04); transition:background .15s; }
+              .mb-table tfoot tr { background:linear-gradient(135deg,rgba(245,183,49,.08),rgba(245,183,49,.04));border-top:2px solid rgba(245,183,49,.25); }
+              .mb-table tfoot td { padding:8px 10px;font-weight:900; }
+              .mb-badge { display:inline-flex;align-items:center;justify-content:center;min-width:40px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:900; }
+              .mb-badge-gold { background:rgba(245,183,49,.12);color:var(--gold);border:1px solid rgba(245,183,49,.22); }
+              .mb-badge-red  { background:rgba(239,68,68,.1);color:var(--red2);border:1px solid rgba(239,68,68,.2); }
+              .mb-badge-cyan { background:rgba(34,211,238,.08);color:var(--cyan);border:1px solid rgba(34,211,238,.18); }
+              .mb-rate { display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:900;min-width:44px; }
+              .mb-legend { display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:7px;padding:7px 10px;background:rgba(255,255,255,.02);border-radius:8px;border:1px dashed var(--border); }
+              .mb-legend span { font-size:8.5px;color:var(--txt4); }
+              @media(max-width:480px){
+                .mb-table { font-size:10px; }
+                .mb-table th, .mb-table td { padding:6px 7px; }
+                .mb-badge { font-size:10px;min-width:32px;padding:1px 6px; }
+              }
+            </style>`;
+
           if (selMonths.length === 1) {
-            // شهر واحد: عرض مختصر بدون جدول
+            /* شهر واحد: ثلاث بطاقات مرنة */
             const row = rows[0];
-            monthlyBreakdownHtml = `
-              <div style="margin-top:7px;padding:7px 10px;background:rgba(34,211,238,.05);border-radius:8px;border:1px solid rgba(34,211,238,.15)">
-                <div style="font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📅 تفاصيل ${row.mLabel}</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
-                  <div style="background:rgba(245,183,49,.07);border-radius:6px;padding:5px 4px">
-                    <div style="font-size:9px;color:var(--txt3);margin-bottom:2px">📥 استُلم</div>
-                    <div style="font-size:14px;font-weight:900;color:var(--gold)">${row.mRetRecv.toLocaleString('ar-EG')}</div>
+            monthlyBreakdownHtml = `${mbTableStyle}
+              <div class="mb-detail-wrap">
+                <div class="mb-detail-title">📅 تفاصيل ${row.mLabel}</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <div style="background:rgba(245,183,49,.07);border:1px solid rgba(245,183,49,.18);border-radius:10px;padding:10px 8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:var(--gold);line-height:1.1">${row.mRetRecv.toLocaleString('ar-EG')}</div>
+                    <div style="font-size:9px;color:var(--txt3);margin-top:3px;font-weight:700">📥 استُلم</div>
                   </div>
-                  <div style="background:rgba(239,68,68,.07);border-radius:6px;padding:5px 4px">
-                    <div style="font-size:9px;color:var(--txt3);margin-bottom:2px">🏭 إنتاج هذا الشهر</div>
-                    <div style="font-size:14px;font-weight:900;color:var(--red2)">${row.mRetProd.toLocaleString('ar-EG')}</div>
+                  <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18);border-radius:10px;padding:10px 8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:var(--red2);line-height:1.1">${row.mRetProd.toLocaleString('ar-EG')}</div>
+                    <div style="font-size:9px;color:var(--txt3);margin-top:3px;font-weight:700">🏭 مرتجع الإنتاج</div>
                   </div>
-                  <div style="background:rgba(34,211,238,.06);border-radius:6px;padding:5px 4px">
-                    <div style="font-size:9px;color:var(--txt3);margin-bottom:2px">📊 نسبة الإنتاج</div>
-                    <div style="font-size:14px;font-weight:900;color:${row.rateClr}">${row.rate ? row.rate+'%' : '—'}</div>
+                  <div style="background:${row.rate?'rgba(34,211,238,.06)':'rgba(255,255,255,.03)'};border:1px solid ${row.rate?'rgba(34,211,238,.18)':'var(--border)'};border-radius:10px;padding:10px 8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:${row.rateClr};line-height:1.1">${row.rate ? row.rate+'%' : '—'}</div>
+                    <div style="font-size:9px;color:var(--txt3);margin-top:3px;font-weight:700">📊 نسبة الإنتاج</div>
                   </div>
+                </div>
+                <div class="mb-legend">
+                  <span>📥 <b style="color:var(--gold)">استُلم:</b> مرتجعات تاريخ استلامها في هذا الشهر</span>
+                  <span>🏭 <b style="color:var(--red2)">مرتجع الإنتاج:</b> وحدات أُنتجت هذا الشهر وعادت في أي وقت</span>
+                  <span>📊 <b>النسبة:</b> مرتجع الإنتاج ÷ إجمالي الإنتاج</span>
                 </div>
               </div>`;
           } else {
-            // عدة أشهر: جدول تفصيلي
-            monthlyBreakdownHtml = `
-              <div style="margin-top:8px">
-                <div style="font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">📋 تفاصيل الأشهر المحددة</div>
-                <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:10px">
+            /* عدة أشهر: جدول responsive كامل */
+            const totRecv  = rows.reduce((a,x)=>a+x.mRetRecv,0);
+            const totProd  = rows.reduce((a,x)=>a+x.mRetProd,0);
+            const totProdV = rows.reduce((a,x)=>a+x.mProd,0);
+            const totRate  = totProdV>0&&totProd>0 ? (totProd/totProdV*100).toFixed(1) : null;
+            const totRateC = totRate?(parseFloat(totRate)<3?'var(--em)':parseFloat(totRate)<8?'var(--amber)':'var(--red)'):'var(--txt4)';
+
+            monthlyBreakdownHtml = `${mbTableStyle}
+              <div class="mb-detail-wrap">
+                <div class="mb-detail-title">📋 تفاصيل الأشهر المحددة <span style="color:var(--txt4);font-weight:400;font-size:9px">(${rows.length} شهر)</span></div>
+                <div class="mb-scroll">
+                <table class="mb-table">
                   <thead>
-                    <tr style="background:rgba(255,255,255,.04)">
-                      <th style="padding:4px 7px;text-align:right;color:var(--txt3);font-weight:700;border-bottom:1px solid var(--border)">الشهر</th>
-                      <th style="padding:4px 5px;text-align:center;color:var(--gold);font-weight:700;border-bottom:1px solid var(--border)">📥 استُلم</th>
-                      <th style="padding:4px 5px;text-align:center;color:var(--red2);font-weight:700;border-bottom:1px solid var(--border)">🏭 إنتاج الشهر</th>
-                      <th style="padding:4px 5px;text-align:center;color:var(--cyan);font-weight:700;border-bottom:1px solid var(--border)">⚙️ الإنتاج الكلي</th>
-                      <th style="padding:4px 5px;text-align:center;color:var(--txt2);font-weight:700;border-bottom:1px solid var(--border)">📊 النسبة</th>
+                    <tr>
+                      <th class="t-right" style="color:var(--txt2)">الشهر</th>
+                      <th class="t-center" style="color:var(--gold)">📥 استُلم</th>
+                      <th class="t-center" style="color:var(--red2)">🏭 مرتجع الإنتاج</th>
+                      <th class="t-center" style="color:var(--cyan)">⚙️ الإنتاج الكلي</th>
+                      <th class="t-center" style="color:var(--txt2)">📊 النسبة %</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${rows.map((row,i) => `
-                      <tr style="border-bottom:1px solid var(--border);${i%2===0?'background:rgba(255,255,255,.015)':''}">
-                        <td style="padding:5px 7px;font-weight:700;color:var(--txt2);white-space:nowrap">${row.mLabel}</td>
-                        <td style="padding:5px;text-align:center">
-                          <span style="font-weight:900;color:${row.mRetRecv>0?'var(--gold)':'var(--txt4)'}">${row.mRetRecv>0?row.mRetRecv.toLocaleString('ar-EG'):'—'}</span>
+                    ${rows.map(row => {
+                      const barW = row.mProd>0&&row.mRetProd>0 ? Math.min(100,row.mRetProd/row.mProd*100) : 0;
+                      return `<tr>
+                        <td class="t-right" style="font-weight:700;color:var(--txt);white-space:nowrap">${row.mLabel}</td>
+                        <td class="t-center">
+                          ${row.mRetRecv>0 ? `<span class="mb-badge mb-badge-gold">${row.mRetRecv.toLocaleString('ar-EG')}</span>` : '<span style="color:var(--txt4)">—</span>'}
                         </td>
-                        <td style="padding:5px;text-align:center">
-                          <span style="font-weight:900;color:${row.mRetProd>0?'var(--red2)':'var(--txt4)'}">${row.mRetProd>0?row.mRetProd.toLocaleString('ar-EG'):'—'}</span>
+                        <td class="t-center">
+                          ${row.mRetProd>0 ? `<span class="mb-badge mb-badge-red">${row.mRetProd.toLocaleString('ar-EG')}</span>` : '<span style="color:var(--txt4)">—</span>'}
                         </td>
-                        <td style="padding:5px;text-align:center">
-                          <span style="color:${row.mProd>0?'var(--cyan)':'var(--txt4)'}">${row.mProd>0?row.mProd.toLocaleString('ar-EG'):'—'}</span>
+                        <td class="t-center">
+                          ${row.mProd>0 ? `<span class="mb-badge mb-badge-cyan">${row.mProd.toLocaleString('ar-EG')}</span>` : '<span style="color:var(--txt4)">—</span>'}
                         </td>
-                        <td style="padding:5px;text-align:center">
-                          ${row.rate ? `<span style="font-size:11px;font-weight:900;color:${row.rateClr}">${row.rate}%</span>` : '<span style="color:var(--txt4)">—</span>'}
+                        <td class="t-center">
+                          ${row.rate ? `<div>
+                            <span class="mb-rate" style="background:${row.rateClr}18;color:${row.rateClr};border:1px solid ${row.rateClr}33">${row.rate}%</span>
+                            ${barW>0?`<div style="height:3px;background:var(--bg5);border-radius:2px;margin-top:4px;overflow:hidden"><div style="width:${barW}%;height:100%;background:${row.rateClr};border-radius:2px"></div></div>`:''}
+                          </div>` : '<span style="color:var(--txt4)">—</span>'}
                         </td>
-                      </tr>`).join('')}
-                    <tr style="background:rgba(255,255,255,.04);border-top:1px solid var(--border2);font-weight:900">
-                      <td style="padding:5px 7px;color:var(--gold)">الإجمالي</td>
-                      <td style="padding:5px;text-align:center;color:var(--gold)">${rows.reduce((a,x)=>a+x.mRetRecv,0).toLocaleString('ar-EG')}</td>
-                      <td style="padding:5px;text-align:center;color:var(--red2)">${rows.reduce((a,x)=>a+x.mRetProd,0).toLocaleString('ar-EG')}</td>
-                      <td style="padding:5px;text-align:center;color:var(--cyan)">${rows.reduce((a,x)=>a+x.mProd,0).toLocaleString('ar-EG')}</td>
-                      <td style="padding:5px;text-align:center">
-                        ${(()=>{const tRP=rows.reduce((a,x)=>a+x.mRetProd,0),tP=rows.reduce((a,x)=>a+x.mProd,0);const tr=tP>0&&tRP>0?(tRP/tP*100).toFixed(1):null;const tc=tr?(parseFloat(tr)<3?'var(--em)':parseFloat(tr)<8?'var(--amber)':'var(--red)'):'var(--txt4)';return tr?`<span style="font-size:12px;font-weight:900;color:${tc}">${tr}%</span>`:'<span style="color:var(--txt4)">—</span>'})()}
-                      </td>
-                    </tr>
+                      </tr>`;
+                    }).join('')}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td class="t-right" style="color:var(--gold)">🏆 الإجمالي</td>
+                      <td class="t-center"><span class="mb-badge mb-badge-gold">${totRecv.toLocaleString('ar-EG')}</span></td>
+                      <td class="t-center"><span class="mb-badge mb-badge-red">${totProd.toLocaleString('ar-EG')}</span></td>
+                      <td class="t-center"><span class="mb-badge mb-badge-cyan">${totProdV>0?totProdV.toLocaleString('ar-EG'):'—'}</span></td>
+                      <td class="t-center">${totRate?`<span class="mb-rate" style="font-size:13px;background:${totRateC}18;color:${totRateC};border:1px solid ${totRateC}33">${totRate}%</span>`:'<span style="color:var(--txt4)">—</span>'}</td>
+                    </tr>
+                  </tfoot>
                 </table>
                 </div>
-                <div style="margin-top:5px;font-size:8.5px;color:var(--txt4)">
-                  📥 <b style="color:var(--gold)">استُلم:</b> تاريخ استلام المرتجع ضمن الشهر · 
-                  🏭 <b style="color:var(--red2)">إنتاج الشهر:</b> وحدات أُنتجت في هذا الشهر وعادت في أي وقت · 
-                  📊 <b style="color:var(--cyan)">النسبة:</b> مرتجع إنتاج الشهر ÷ إجمالي إنتاجه
+                <div class="mb-legend">
+                  <span>📥 <b style="color:var(--gold)">استُلم:</b> تاريخ استلام المرتجع ضمن الشهر</span>
+                  <span>🏭 <b style="color:var(--red2)">مرتجع الإنتاج:</b> وحدات أُنتجت هذا الشهر وعادت في أي وقت</span>
+                  <span>📊 <b style="color:var(--cyan)">النسبة:</b> مرتجع الإنتاج ÷ إجمالي إنتاجه</span>
                 </div>
               </div>`;
           }
@@ -10885,12 +10933,23 @@ function handleIPCImport(input, hallKey) {
 
       // Returns per group per prodMonth
       const retMap={};
+      // المرتجعات بدون تاريخ إنتاج — مجمّعة لكل مجموعة
+      const noProdDateMap={};  // gid → {qty, prods:{}}
       getSpFilteredByProdMonth().forEach(r=>{
         const gid=classifyProduct(r.product||'',r.barcode||'');
-        const pm=getRecProdMonth(r); if(!pm||!gid) return;
+        const pm=getRecProdMonth(r);
+        const qty=r.qty||1;
+        if(!pm) {
+          // بدون تاريخ إنتاج
+          if(!noProdDateMap[gid]) noProdDateMap[gid]={qty:0,prods:{}};
+          noProdDateMap[gid].qty+=qty;
+          const p=r.product||r.barcode||'?';
+          noProdDateMap[gid].prods[p]=(noProdDateMap[gid].prods[p]||0)+qty;
+          return;
+        }
+        if(!gid) return;
         if(!retMap[gid]) retMap[gid]={};
         if(!retMap[gid][pm]) retMap[gid][pm]={qty:0,prods:{}};
-        const qty=r.qty||1;
         retMap[gid][pm].qty+=qty;
         const p=r.product||r.barcode||'?';
         retMap[gid][pm].prods[p]=(retMap[gid][pm].prods[p]||0)+qty;
@@ -10930,11 +10989,13 @@ function handleIPCImport(input, hallKey) {
 
       if(!months.length){area.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3)">لا توجد بيانات للفترة المختارة</div>';return;}
 
-      const active=cfg.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty||(prodMap[g.id]||{})[m]));
+      const active=cfg.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty||(prodMap[g.id]||{})[m]) || (noProdDateMap[g.id]?.qty||0)>0);
       const missingProd=active.filter(g=>months.some(m=>(retMap[g.id]||{})[m]?.qty&&!((prodMap[g.id]||{})[m]>0)));
-      const gtRet =months.reduce((a,m)=>a+active.reduce((b,g)=>b+((retMap[g.id]||{})[m]?.qty||0),0),0);
+      const gtRetWithProd=months.reduce((a,m)=>a+active.reduce((b,g)=>b+((retMap[g.id]||{})[m]?.qty||0),0),0);
+      const gtNoProd=active.reduce((a,g)=>a+(noProdDateMap[g.id]?.qty||0),0);
+      const gtRet=gtRetWithProd+gtNoProd;
       const gtProd=months.reduce((a,m)=>a+active.reduce((b,g)=>b+((prodMap[g.id]||{})[m]||0),0),0);
-      const gtRate=gtProd>0&&gtRet>0?(gtRet/gtProd*100).toFixed(2):null;
+      const gtRate=gtProd>0&&gtRetWithProd>0?(gtRetWithProd/gtProd*100).toFixed(2):null;
       const gtRc  =gtRate?(parseFloat(gtRate)<3?'var(--em)':parseFloat(gtRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
 
       let html='';
@@ -10949,6 +11010,7 @@ function handleIPCImport(input, hallKey) {
         <span style="font-size:11px;font-weight:700;color:var(--txt2)">📊 ${months.length} شهر · ${active.length} قسم</span>
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
           <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div><div style="font-size:9px;color:var(--txt3)">إجمالي المرتجعات</div></div>
+          ${gtNoProd>0?`<div style="text-align:center"><div style="font-size:14px;font-weight:900;color:var(--amber)">⬜ ${gtNoProd.toLocaleString('ar-EG')}</div><div style="font-size:9px;color:var(--txt3)">بدون تاريخ إنتاج</div></div>`:''}
           <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--cyan)">${gtProd>0?gtProd.toLocaleString('ar-EG'):'—'}</div><div style="font-size:9px;color:var(--txt3)">إجمالي الإنتاج</div></div>
           ${gtRate?`<div style="text-align:center"><div style="font-size:22px;font-weight:900;color:${gtRc}">${gtRate}%</div><div style="font-size:9px;color:var(--txt3)">نسبة المرتجعات</div></div>`:''}
         </div>
@@ -10961,12 +11023,15 @@ function handleIPCImport(input, hallKey) {
           <tr style="background:var(--bg4)">
             <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border2);min-width:130px">القسم</th>
             ${months.map(m=>{const[y,mo]=m.split('-');return`<th style="padding:8px 6px;text-align:center;border-bottom:2px solid var(--border2);min-width:115px;font-size:10px">${MNF[+mo-1]} ${y}</th>`;}).join('')}
+            <th style="padding:8px 5px;text-align:center;border-bottom:2px solid var(--border2);border-right:1px solid var(--border);min-width:90px;background:rgba(245,183,49,.04);color:var(--amber);font-size:10px">⬜ بدون تاريخ</th>
             <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border2);border-right:2px solid var(--border2);min-width:105px">الإجمالي</th>
           </tr>
         </thead>
         <tbody>
         ${active.map(g=>{
           const tR=months.reduce((a,m)=>a+((retMap[g.id]||{})[m]?.qty||0),0);
+          const noProd=noProdDateMap[g.id]?.qty||0;
+          const tRAll=tR+noProd;
           const tP=months.reduce((a,m)=>a+((prodMap[g.id]||{})[m]||0),0);
           const tRate=tP>0&&tR>0?(tR/tP*100).toFixed(2):null;
           const tRc=tRate?(parseFloat(tRate)<3?'var(--em)':parseFloat(tRate)<8?'var(--amber)':'var(--red)'):'var(--txt3)';
@@ -10990,14 +11055,18 @@ function handleIPCImport(input, hallKey) {
                 ${rate?`<div style="font-size:12px;font-weight:900;color:${rc}">${rate}%</div>`:''}
               </td>`;
             }).join('')}
+            <td style="padding:7px 5px;text-align:center;background:rgba(245,183,49,.03);border-right:1px solid var(--border)">
+              ${noProd>0?`<div style="font-size:12px;font-weight:900;color:var(--amber)">⬜ ${noProd.toLocaleString('ar-EG')}</div><div style="font-size:8.5px;color:var(--txt4);margin-top:2px">بدون طباعة</div>`:'<span style="color:var(--txt4);font-size:10px">—</span>'}
+            </td>
             <td style="padding:7px;text-align:center;background:var(--bg3);border-right:2px solid var(--border2)">
-              ${tR?`<div style="font-size:13px;font-weight:900;color:var(--red)">↩ ${tR.toLocaleString('ar-EG')}</div>`:''}
+              ${tRAll>0?`<div style="font-size:14px;font-weight:900;color:var(--red)">↩ ${tRAll.toLocaleString('ar-EG')}</div>`:''}
+              ${tR>0&&tRAll!==tR?`<div style="font-size:9px;color:var(--txt3)">منها إنتاج: ${tR.toLocaleString('ar-EG')}</div>`:''}
               ${tP?`<div style="font-size:10px;color:var(--cyan)">🏭 ${tP.toLocaleString('ar-EG')}</div>`:''}
               ${tRate?`<div style="font-size:13px;font-weight:900;color:${tRc}">${tRate}%</div>`:''}
             </td>
           </tr>
           <tr id="pd-${g.id}" style="display:none">
-            <td colspan="${months.length+2}" style="padding:0">
+            <td colspan="${months.length+3}" style="padding:0">
               <div style="background:var(--bg4);border-top:1px dashed var(--border);border-bottom:1px solid var(--border2)">
                 <div style="padding:8px 12px;overflow-x:auto">
                   <div style="font-size:10px;color:var(--cyan);font-weight:700;margin-bottom:7px">📦 ${g.icon} ${g.name} — تفاصيل كل منتج</div>
@@ -11010,17 +11079,25 @@ function handleIPCImport(input, hallKey) {
                         pItems[p].total+=q; pItems[p].byM[m]=q;
                       });
                     });
+                    // add no-prodDate items
+                    const npd=noProdDateMap[g.id];
+                    if(npd) Object.entries(npd.prods||{}).forEach(([p,q])=>{
+                      if(!pItems[p]) pItems[p]={total:0,byM:{}};
+                      pItems[p].total+=q; pItems[p].byM['__noprod']=(pItems[p].byM['__noprod']||0)+q;
+                    });
                     const sorted=Object.entries(pItems).sort((a,b)=>b[1].total-a[1].total);
                     if(!sorted.length) return '<div style="font-size:10px;color:var(--txt4);padding:6px">لا توجد بيانات</div>';
                     return`<table style="width:100%;border-collapse:collapse;font-size:10px">
                       <thead><tr style="color:var(--txt3)">
                         <th style="padding:4px 8px;text-align:right;min-width:150px">المنتج</th>
                         ${months.map(m=>{const[y,mo]=m.split('-');return`<th style="padding:4px;text-align:center;min-width:65px">${MN_SHORT[+mo-1]} ${y.slice(2)}</th>`;}).join('')}
+                        <th style="padding:4px;text-align:center;color:var(--amber)">⬜</th>
                         <th style="padding:4px;text-align:center">↩ إجمالي</th>
                       </tr></thead>
                       <tbody>${sorted.map(([p,d])=>`<tr style="border-top:1px solid var(--border)">
                         <td style="padding:4px 8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:var(--txt2)" title="${p}">${p}</td>
                         ${months.map(m=>{const q=d.byM[m]||0;const pd=(prodMap[g.id]||{})[m]||0;const rt=pd>0&&q>0?(q/pd*100).toFixed(1):null;const rc=rt?(parseFloat(rt)<3?'var(--em)':parseFloat(rt)<8?'var(--amber)':'var(--red)'):'';return q?`<td style="padding:4px;text-align:center"><b style="color:var(--red2)">${q}</b>${rt?`<br><span style="font-size:8.5px;color:${rc}">${rt}%</span>`:''}</td>`:`<td style="padding:4px;text-align:center;color:var(--txt4)">—</td>`;}).join('')}
+                        <td style="padding:4px;text-align:center">${d.byM['__noprod']?`<b style="color:var(--amber)">${d.byM['__noprod']}</b>`:'<span style="color:var(--txt4)">—</span>'}</td>
                         <td style="padding:4px;text-align:center;font-weight:900;color:var(--red)">${d.total}</td>
                       </tr>`).join('')}</tbody>
                     </table>`;
@@ -11043,14 +11120,23 @@ function handleIPCImport(input, hallKey) {
               ${rate?`<div style="font-size:11px;font-weight:900;color:${rc}">${rate}%</div>`:''}
             </td>`;
           }).join('')}
+          <td style="padding:7px 5px;text-align:center;background:rgba(245,183,49,.04);border-right:1px solid var(--border)">
+            ${gtNoProd>0?`<div style="font-size:13px;font-weight:900;color:var(--amber)">⬜ ${gtNoProd.toLocaleString('ar-EG')}</div><div style="font-size:8.5px;color:var(--txt4)">بدون طباعة</div>`:'<span style="color:var(--txt4)">—</span>'}
+          </td>
           <td style="padding:7px;text-align:center;border-right:2px solid var(--border2)">
             ${gtRet?`<div style="font-size:14px;font-weight:900;color:var(--red)">↩ ${gtRet.toLocaleString('ar-EG')}</div>`:''}
+            ${gtNoProd>0?`<div style="font-size:9px;color:var(--txt3)">منها إنتاج: ${gtRetWithProd.toLocaleString('ar-EG')}</div>`:''}
             ${gtProd?`<div style="font-size:11px;color:var(--cyan)">🏭 ${gtProd.toLocaleString('ar-EG')}</div>`:''}
             ${gtRate?`<div style="font-size:15px;font-weight:900;color:${gtRc}">${gtRate}%</div>`:''}
           </td>
         </tr>
         </tbody>
-      </table></div>`;
+      </table></div>
+      ${gtNoProd>0?`<div style="margin-top:8px;padding:8px 12px;background:rgba(245,183,49,.06);border:1px solid rgba(245,183,49,.2);border-radius:8px;font-size:10px;color:var(--amber);display:flex;align-items:flex-start;gap:7px">
+        <span style="flex-shrink:0">⬜</span>
+        <span><b>${gtNoProd.toLocaleString('ar-EG')} وحدة بدون تاريخ إنتاج (بدون طباعة)</b> — هذه المرتجعات لا تحمل تاريخ إنتاج مطبوعاً ولم يُتمكن من تحديد شهر إنتاجها من بيانات IPC. تم إدراجها في العمود ⬜ وتُحتسب ضمن الإجمالي الكلي.</span>
+      </div>`:''}
+      `;
 
       area.innerHTML = html;
     }
